@@ -2,26 +2,63 @@
 
 \##  Inicio
 
-Descargar node.js
+Levantar el proyecto que ya existe (para el resto del grupo)
 
-\# Descarga la imagen de Docker de Node.js:
+### 1. Clonar el repo y abrir PowerShell en la carpeta que contiene `futbot-front`
 
-`docker pull node:24-slim`
+```powershell
+cd "C:\ruta\al\repo\front futbot"
+```
 
-\# Crea un contenedor de Node.js e inicia una sesión shell:
+(La carpeta donde **ves** la carpeta `futbot-front` adentro.)
 
-`docker run -it --name node-dev --entrypoint sh node:24-slim`
+### 2. Bajá la imagen y creá el contenedor
 
-Esto crea un contenedor que una vez aplicado `exit` corta su ejecución
+```powershell
+docker pull node:24-slim
+docker run -it --name node-dev -p 5173:5173 -v "${PWD}:/app" -w /app/futbot-front --entrypoint sh node:24-slim
+```
 
-\# Verifica la versión de Node.js:
+Fijate que acá `-w` es `/app/futbot-front`, así ya entrás parado en la carpeta del proyecto.
 
-node -v # Debería mostrar "v24.21.0".
+### 3. Instalá dependencias y levantá
 
-\# Verifica versión de npm:
+```sh
+npm install
+npm run dev
+```
 
-npm -v # Debería mostrar "11.19.0".
+### 4. Abrí http://localhost:5173/
 
-\# Reiniciar la ejecución del contenedor (Frenado con `exit`):
+---
 
-`docker start -ai node-dev`
+## Uso del día a día
+
+Cuando ya tenés el contenedor creado, **no vuelvas a correr `docker run`** (te va a decir que el nombre ya existe). Usá:
+
+```powershell
+docker start -ai node-dev
+```
+
+Y adentro:
+
+```sh
+cd futbot-front    # solo si no entraste directo a la carpeta del proyecto
+npm run dev
+```
+
+Si el contenedor ya está corriendo y querés abrir otra terminal:
+
+```powershell
+docker exec -it node-dev sh
+```
+
+Si agregaron dependencias nuevas al proyecto (alguien hizo `npm install algo`), después de hacer `git pull` corré de nuevo `npm install` adentro del contenedor.
+
+## Comandos útiles
+
+```powershell
+docker ps -a            # ver contenedores (incluso detenidos)
+docker stop node-dev    # detenerlo
+docker rm node-dev      # borrarlo (tu código NO se pierde, está en tu carpeta)
+```
