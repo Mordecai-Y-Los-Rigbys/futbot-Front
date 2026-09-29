@@ -5,7 +5,7 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [react()],
   server: {
-    host: true,
+    host: true,                   // escucha en 0.0.0.0, obligatorio en Docker
     port: 5173,
-  },
+  }
 })
