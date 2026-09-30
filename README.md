@@ -7,7 +7,7 @@
 
 ## Iniciar el entorno de desarrollo
 
-Abrí una terminal en la raíz del repositorio, donde están `Dockerfile` y `docker-compose.yml`, y ejecutá:
+Abrí una terminal en la raíz del repositorio con docker desktop abierto o el servicio de docker andando, donde están `Dockerfile` y `docker-compose.yml`, y ejecutá:
 
 ```powershell
 docker compose up
