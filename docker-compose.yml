@@ -10,6 +10,8 @@ services:
       - .:/app
       - frontend_node_modules:/app/futbot-front/node_modules
     command: npm run dev -- --host 0.0.0.0
+    stdin_open: true
+    tty: true
 
 volumes:
   frontend_node_modules:

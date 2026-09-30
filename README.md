@@ -7,15 +7,24 @@
 
 ## Iniciar el entorno de desarrollo
 
-Abrí una terminal en la raíz del repositorio con docker desktop abierto o el servicio de docker andando, donde están `Dockerfile` y `docker-compose.yml`, y ejecutá:
+Con Docker Desktop en marcha, abrir una terminal en la carpeta del repositorio.
+
+Para levantar los servicios y conectarte a la consola del frontend:
 
 ```powershell
-docker compose up
+docker compose up -d
+docker compose attach frontend
 ```
 
-La primera vez Docker descargará Node.js e instalará las dependencias; puede tardar unos minutos. Cuando Vite indique que está listo, abrí <http://localhost:5173/>. Los cambios que guardes en el código se reflejarán en el navegador mediante Hot Reload.
+La primera vez puede tardar un poco mientras Docker prepara la imagen. Después, entrá a <http://localhost:5173/>.Para apagar los servicios, usá `docker compose down`.
 
-Para detener el entorno, presioná `Ctrl+C` en la terminal. También podés iniciarlo en segundo plano con `docker compose up -d` y detenerlo con `docker compose down`.
+Si se quiere levantar solo el frontend:
+
+```powershell
+docker compose run --rm --service-ports --name front-dev frontend
+```
+
+Con `--rm`, el contenedor se borra al detenerse. `--service-ports` publica el puerto de Vite; `front-dev` es solo el nombre del contenedor y puede ser cambiarlo.
 
 ## Estructura relevante
 
