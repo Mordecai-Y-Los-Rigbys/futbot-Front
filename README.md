@@ -1,64 +1,34 @@
-\# Guía del front
+# Guía del frontend
 
-\##  Inicio
+## Requisitos
 
-Levantar el proyecto que ya existe (para el resto del grupo)
+- Docker Desktop instalado y en ejecución (incluye Docker Compose).
+- El repositorio clonado en tu computadora.
 
-### 1. Clonar el repo y abrir PowerShell en la carpeta que contiene `futbot-front`
+## Iniciar el entorno de desarrollo
 
-```powershell
-cd "C:\ruta\al\repo\front futbot"
-```
+Con Docker Desktop en marcha, abrir una terminal en la carpeta del repositorio.
 
-(La carpeta donde **ves** la carpeta `futbot-front` adentro.)
-
-### 2. Bajá la imagen y creá el contenedor
+Para levantar los servicios y conectarte a la consola del frontend:
 
 ```powershell
-docker pull node:24-slim
-docker run -it --name node-dev -p 5173:5173 -v "${PWD}:/app" -w /app/futbot-front --entrypoint sh node:24-slim
+docker compose up -d
+docker compose attach frontend
 ```
 
-Fijate que acá `-w` es `/app/futbot-front`, así ya entrás parado en la carpeta del proyecto.
+La primera vez puede tardar un poco mientras Docker prepara la imagen. Después, entrá a <http://localhost:5173/>.Para apagar los servicios, usá `docker compose down`.
 
-### 3. Instalá dependencias y levantá
-
-```sh
-npm install
-npm run dev
-```
-
-### 4. Abrí http://localhost:5173/
-
----
-
-## Uso del día a día
-
-Cuando ya tenés el contenedor creado, **no vuelvas a correr `docker run`** (te va a decir que el nombre ya existe). Usá:
+Si se quiere levantar solo el frontend:
 
 ```powershell
-docker start -ai node-dev
+docker compose run --rm --service-ports --name front-dev frontend
 ```
 
-Y adentro:
+Con `--rm`, el contenedor se borra al detenerse. `--service-ports` publica el puerto de Vite; `front-dev` es solo el nombre del contenedor y puede ser cambiarlo.
 
-```sh
-cd futbot-front    # solo si no entraste directo a la carpeta del proyecto
-npm run dev
-```
+## Estructura relevante
 
-Si el contenedor ya está corriendo y querés abrir otra terminal:
-
-```powershell
-docker exec -it node-dev sh
-```
-
-Si agregaron dependencias nuevas al proyecto (alguien hizo `npm install algo`), después de hacer `git pull` corré de nuevo `npm install` adentro del contenedor.
-
-## Comandos útiles
-
-```powershell
-docker ps -a            # ver contenedores (incluso detenidos)
-docker stop node-dev    # detenerlo
-docker rm node-dev      # borrarlo (tu código NO se pierde, está en tu carpeta)
-```
+- `futbot-front/`: aplicación React y configuración de Vite.
+- `Dockerfile`: imagen del entorno de desarrollo.
+- `docker-compose.yml`: servicio, puerto y volúmenes del frontend.
+- `.dockerignore`: archivos que no se envían al construir la imagen.
