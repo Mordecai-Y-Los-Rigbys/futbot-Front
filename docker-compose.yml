@@ -7,7 +7,7 @@ services:
     ports:
       - "5173:5173"
     volumes:
-      - .:/app
+      - .:/app:z
       - frontend_node_modules:/app/futbot-front/node_modules
     command: npm run dev -- --host 0.0.0.0
     stdin_open: true
