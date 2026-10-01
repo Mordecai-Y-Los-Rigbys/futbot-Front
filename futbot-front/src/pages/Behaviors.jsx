@@ -9,6 +9,11 @@ const DEBOUNCE_MS = 400;
 // Estados con los que el back suele responder ante una página inexistente.
 const OUT_OF_RANGE_STATUSES = [400, 404, 422];
 
+const LOAD_ERROR_MESSAGE = 'No pudimos cargar los comportamientos. Revisá tu conexión e intentá de nuevo.';
+
+// Identifica una request concreta. Cambia cuando cambia cualquier parámetro o se fuerza un reload.
+const requestKeyFor = (name, page, reload) => `${name}|${page}|${reload}`;
+
 export default function Behaviors() {
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
@@ -19,8 +24,10 @@ export default function Behaviors() {
   const [debouncedName, setDebouncedName] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
+  // Última request terminada (su key) y su error, si lo hubo. `isLoading` y `error`
+  // se derivan en el render: si la key terminada no es la de la request actual,
+  // estamos cargando. Así el efecto no tiene que resetear estado al arrancar.
+  const [settled, setSettled] = useState({ key: null, error: null });
 
   // Se incrementa para forzar una nueva llamada aunque nada más haya cambiado
   // (Enter con el mismo texto, o botón "Reintentar").
@@ -36,46 +43,52 @@ export default function Behaviors() {
     return () => clearTimeout(timer);
   }, [searchInput, debouncedName]);
 
+  const isLoading = settled.key !== requestKeyFor(debouncedName, currentPage, reloadKey);
+  const error = isLoading ? null : settled.error;
+
   // Carga de datos. Se cancela la request anterior si cambian los parámetros
   // antes de que responda, para que una respuesta vieja no pise a una nueva.
   useEffect(() => {
     const controller = new AbortController();
-    // true si esta respuesta nos manda de vuelta a la página 1: en ese caso
-    // la carga sigue "en curso" (el efecto se vuelve a ejecutar) y no hay que
-    // mostrar un parpadeo de "sin resultados" ni de error.
-    let backToFirstPage = false;
+    const key = requestKeyFor(debouncedName, currentPage, reloadKey);
 
-    setIsLoading(true);
-    setError(null);
+    // Vuelve a la página 1. Se incrementa también reloadKey para que la key de la
+    // nueva request sea inédita y la pantalla siga en "cargando" (sin parpadeo de
+    // "sin resultados" ni de error).
+    const backToFirstPage = () => {
+      setCurrentPage(1);
+      setReloadKey((value) => value + 1);
+    };
 
     getBehaviors(debouncedName, currentPage, { signal: controller.signal })
       .then((data) => {
+        if (controller.signal.aborted) return;
         // Página vacía pero no es la primera: el total bajó o la página ya no existe.
         if (data.items.length === 0 && currentPage > 1) {
-          backToFirstPage = true;
-          setCurrentPage(1);
+          backToFirstPage();
           return;
         }
         setItems(data.items);
         setTotal(data.total);
+        setSettled({ key, error: null });
       })
       .catch((err) => {
-        if (axios.isCancel(err)) return;
+        if (axios.isCancel(err) || controller.signal.aborted) return;
+        const status = err.response?.status;
         // El 401 lo maneja el mecanismo global de autenticación (redirige a Login).
-        if (err.response?.status === 401) return;
+        if (status === 401) {
+          setSettled({ key, error: null });
+          return;
+        }
         // Página fuera de rango: volvemos a la 1 en lugar de quedar atrapados en el error.
         // Solo desde páginas > 1, así un 400/404 en la 1 muestra el error y no entra en loop.
-        if (currentPage > 1 && OUT_OF_RANGE_STATUSES.includes(err.response?.status)) {
-          backToFirstPage = true;
-          setCurrentPage(1);
+        if (currentPage > 1 && OUT_OF_RANGE_STATUSES.includes(status)) {
+          backToFirstPage();
           return;
         }
         setItems([]);
         setTotal(0);
-        setError('No pudimos cargar los comportamientos. Revisá tu conexión e intentá de nuevo.');
-      })
-      .finally(() => {
-        if (!controller.signal.aborted && !backToFirstPage) setIsLoading(false);
+        setSettled({ key, error: LOAD_ERROR_MESSAGE });
       });
 
     return () => controller.abort();

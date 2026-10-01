@@ -26,9 +26,14 @@ export default function BehaviorDetail() {
   const navigate = useNavigate();
   const dialogRef = useRef(null);
 
-  const [behavior, setBehavior] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
+  // Resultado de la última request terminada, con el id al que corresponde.
+  // `isLoading` y `error` se derivan en el render: mientras el resultado no sea
+  // del id actual, estamos cargando (así no hace falta resetear estado en el efecto).
+  const [result, setResult] = useState({ id: null, behavior: null, error: null });
+  const current = result.id === id ? result : null;
+  const isLoading = current === null;
+  const behavior = current?.behavior ?? null;
+  const error = current?.error ?? null;
 
   const goToList = () => navigate(LIST_PATH);
 
@@ -36,18 +41,12 @@ export default function BehaviorDetail() {
   // para que una respuesta vieja no pise a una nueva.
   useEffect(() => {
     const controller = new AbortController();
-    setIsLoading(true);
-    setError(null);
-    setBehavior(null);
 
     getBehaviorById(id, { signal: controller.signal })
-      .then((data) => setBehavior(data))
+      .then((data) => setResult({ id, behavior: data, error: null }))
       .catch((err) => {
         if (axios.isCancel(err)) return;
-        setError(errorMessage(err));
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setIsLoading(false);
+        setResult({ id, behavior: null, error: errorMessage(err) });
       });
 
     return () => controller.abort();
