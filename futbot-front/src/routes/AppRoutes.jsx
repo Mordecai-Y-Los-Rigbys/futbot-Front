@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Home from '../pages/Home';
 import Behaviors from '../pages/Behaviors';
 import BehaviorDetail from '../pages/BehaviorDetail';
+import Register from '../pages/Register';
 
 export default function AppRoutes() {
   return (
@@ -13,6 +14,8 @@ export default function AppRoutes() {
         <Route path="/behaviors" element={<Behaviors />}>
           <Route path=":id" element={<BehaviorDetail />} />
         </Route>
+        <Route path="/registro" element={<Register />} />
+        <Route path="/login" element={<div style={{ padding: '20px' }}>Pantalla de Login</div>} />
       </Routes>
     </BrowserRouter>
   );
