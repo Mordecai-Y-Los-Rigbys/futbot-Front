@@ -10,24 +10,11 @@ export const PAGE_SIZE = 50;
  * @param {{ signal?: AbortSignal }} [options]  Permite cancelar la request.
  * @returns {Promise<{ items: {id: number, name: string}[], page: number, pageSize: number, total: number }>}
  */
-/*export async function getBehaviors(name, page = 1, { signal } = {}) {
+export async function getBehaviors(name, page = 1, { signal } = {}) {
   const { data } = await api.get('/behaviors/me', {
     // Con `undefined` axios omite el parámetro, así `?name=` no viaja vacío.
     params: { name: name || undefined, page },
     signal,
   });
   return data;
-}*/
-export async function getBehaviors(name, page = 1) {
-  const all = Array.from({ length: 3 }, (_, i) => ({ id: i + 1, name: `Behavior ${i + 1}` }));
-  const filtered = all.filter((b) =>
-    b.name.toLowerCase().includes((name || '').toLowerCase()),
-  );
-  const start = (page - 1) * PAGE_SIZE;
-  return {
-    items: filtered.slice(start, start + PAGE_SIZE),
-    page,
-    pageSize: PAGE_SIZE,
-    total: filtered.length,
-  };
 }
