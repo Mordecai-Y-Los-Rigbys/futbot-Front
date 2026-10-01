@@ -5,6 +5,9 @@ import './Behaviors.css';
 
 const DEBOUNCE_MS = 400;
 
+// Estados con los que el back suele responder ante una página inexistente.
+const OUT_OF_RANGE_STATUSES = [400, 404, 422];
+
 export default function Behaviors() {
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
@@ -36,11 +39,22 @@ export default function Behaviors() {
   // antes de que responda, para que una respuesta vieja no pise a una nueva.
   useEffect(() => {
     const controller = new AbortController();
+    // true si esta respuesta nos manda de vuelta a la página 1: en ese caso
+    // la carga sigue "en curso" (el efecto se vuelve a ejecutar) y no hay que
+    // mostrar un parpadeo de "sin resultados" ni de error.
+    let backToFirstPage = false;
+
     setIsLoading(true);
     setError(null);
 
     getBehaviors(debouncedName, currentPage, { signal: controller.signal })
       .then((data) => {
+        // Página vacía pero no es la primera: el total bajó o la página ya no existe.
+        if (data.items.length === 0 && currentPage > 1) {
+          backToFirstPage = true;
+          setCurrentPage(1);
+          return;
+        }
         setItems(data.items);
         setTotal(data.total);
       })
@@ -48,12 +62,19 @@ export default function Behaviors() {
         if (axios.isCancel(err)) return;
         // El 401 lo maneja el mecanismo global de autenticación (redirige a Login).
         if (err.response?.status === 401) return;
+        // Página fuera de rango: volvemos a la 1 en lugar de quedar atrapados en el error.
+        // Solo desde páginas > 1, así un 400/404 en la 1 muestra el error y no entra en loop.
+        if (currentPage > 1 && OUT_OF_RANGE_STATUSES.includes(err.response?.status)) {
+          backToFirstPage = true;
+          setCurrentPage(1);
+          return;
+        }
         setItems([]);
         setTotal(0);
         setError('No pudimos cargar los comportamientos. Revisá tu conexión e intentá de nuevo.');
       })
       .finally(() => {
-        if (!controller.signal.aborted) setIsLoading(false);
+        if (!controller.signal.aborted && !backToFirstPage) setIsLoading(false);
       });
 
     return () => controller.abort();

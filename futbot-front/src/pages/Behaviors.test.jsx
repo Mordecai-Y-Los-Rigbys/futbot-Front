@@ -239,4 +239,73 @@ describe('Behaviors', () => {
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
   });
+
+  // Pegar dentro del describe('Behaviors', ...) de Behaviors.test.jsx,
+// por ejemplo justo después del describe('paginación', ...).
+
+  describe('página fuera de rango', () => {
+    // Página 1 con datos; cualquier otra página llega vacía.
+    const emptyBeyondFirstPage = (name, page) =>
+      Promise.resolve(page === 1 ? response(makeItems(50), 120) : response([], 120));
+
+    it('si una página > 1 llega vacía, vuelve a la página 1', async () => {
+      getBehaviors.mockImplementation(emptyBeyondFirstPage);
+      await renderPage();
+
+      fireEvent.click(button('Siguiente'));
+      await flush();
+      await flush();
+
+      expect(getBehaviors).toHaveBeenCalledTimes(3); // carga inicial, página 2, de nuevo página 1
+      expect(getBehaviors).toHaveBeenLastCalledWith('', 1, expect.anything());
+      expect(screen.getByText('Página 1 de 3')).toBeInTheDocument();
+      expect(screen.queryByText('No se encontraron comportamientos.')).not.toBeInTheDocument();
+    });
+
+    it.each([400, 404, 422])(
+      'un %i en una página > 1 vuelve a la página 1 sin mostrar error',
+      async (status) => {
+        getBehaviors.mockImplementation((name, page) =>
+          page === 1 ? Promise.resolve(response(makeItems(50), 120)) : Promise.reject(httpError(status)),
+        );
+        await renderPage();
+
+        fireEvent.click(button('Siguiente'));
+        await flush();
+        await flush();
+
+        expect(getBehaviors).toHaveBeenLastCalledWith('', 1, expect.anything());
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        expect(screen.getByText('Página 1 de 3')).toBeInTheDocument();
+      },
+    );
+
+    it('un 404 en la página 1 muestra el error y no entra en loop', async () => {
+      getBehaviors.mockRejectedValue(httpError(404));
+
+      await renderPage();
+      await flush();
+
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+      expect(getBehaviors).toHaveBeenCalledTimes(1);
+    });
+
+    it('un 500 en una página > 1 muestra el error y "Reintentar" repite esa misma página', async () => {
+      getBehaviors.mockResolvedValue(response(makeItems(50), 120));
+      await renderPage();
+
+      getBehaviors.mockRejectedValueOnce(httpError(500));
+      fireEvent.click(button('Siguiente'));
+      await flush();
+
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+      expect(getBehaviors).toHaveBeenLastCalledWith('', 2, expect.anything());
+
+      fireEvent.click(button('Reintentar'));
+      await flush();
+
+      expect(getBehaviors).toHaveBeenLastCalledWith('', 2, expect.anything());
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+  });
 });
