@@ -9,6 +9,19 @@ function LoginScreen() {
 
   function handleSubmit(event) {
     event.preventDefault();
+
+    if (!email.trim()) {
+    setErrorMessage('Ingresá un email válido.');
+    return;
+    }
+
+    if (!password) {
+    setErrorMessage('Ingresá una contraseña válida.');
+    return;
+    }
+
+    setErrorMessage('');
+    console.log('Formulario válido', { email, password }); //creo que aca despues se llama al endpoint
     }
 
     return(
@@ -29,6 +42,7 @@ function LoginScreen() {
                 </label>
                 <input type="submit" value="Login" />
             </form>
+            {errorMessage && <p role="alert">{errorMessage}</p>}
             <p>¿Aún no tienes cuenta? <Link to="/registro">Registrate aquí</Link></p>
         </>
     )
