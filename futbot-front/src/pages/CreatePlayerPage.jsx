@@ -16,6 +16,7 @@ export default function CreatePlayerPage() {
           type="text"
           value={name}
           onChange={(event) => setName(event.target.value)}
+          maxLength={20}
           autoComplete="off"
         />
       </div>
