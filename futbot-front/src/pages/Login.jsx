@@ -71,6 +71,7 @@ function LoginScreen({ form, setForm }) {
                 type="submit"
                 disabled={isLoading}
                 style={{
+                    margin: '0 auto',
                     display: 'block',
                     height: '40px',
                     width: '15%',
