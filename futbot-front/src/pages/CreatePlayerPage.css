@@ -56,12 +56,13 @@
 
 .create-player-page__stat {
   display: grid;
-  grid-template-columns: 1fr minmax(100px, 140px);
+  grid-template-columns: 1fr auto;
   align-items: center;
   gap: 8px;
 }
 
-.create-player-page__stat label {
+.create-player-page__stat label,
+.create-player-page__stat output {
   color: var(--text-h);
 }
 
@@ -69,13 +70,12 @@
   font-weight: 600;
 }
 
+.create-player-page__stat output {
+  font-variant-numeric: tabular-nums;
+}
+
 .create-player-page__stat input {
+  grid-column: 1 / -1;
   width: 100%;
-  box-sizing: border-box;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--text-h);
-  background: var(--bg);
-  font: inherit;
+  accent-color: var(--accent);
 }

@@ -1,6 +1,14 @@
 import { useState } from 'react';
 import './CreatePlayerPage.css';
 
+const INITIAL_STATS = {
+  power: 20,
+  agility: 20,
+  control: 20,
+  speed: 20,
+  strength: 20,
+};
+
 const STAT_LABELS = {
   power: 'Power',
   agility: 'Agility',
@@ -11,20 +19,11 @@ const STAT_LABELS = {
 
 export default function CreatePlayerPage() {
   const [name, setName] = useState('');
-  const [stats, setStats] = useState({
-    power: '20',
-    agility: '20',
-    control: '20',
-    speed: '20',
-    strength: '20',
-  });
+  const [stats, setStats] = useState(INITIAL_STATS);
 
   const handleStatChange = (event) => {
     const { name: stat, value } = event.target;
-    setStats((currentStats) => ({
-      ...currentStats,
-      [stat]: value === '' ? '' : Number(value),
-    }));
+    setStats((currentStats) => ({ ...currentStats, [stat]: Number(value) }));
   };
 
   return (
@@ -48,10 +47,11 @@ export default function CreatePlayerPage() {
         {Object.entries(STAT_LABELS).map(([stat, label]) => (
           <div className="create-player-page__stat" key={stat}>
             <label htmlFor={`player-${stat}`}>{label}</label>
+            <output htmlFor={`player-${stat}`}>{stats[stat]}</output>
             <input
               id={`player-${stat}`}
               name={stat}
-              type="number"
+              type="range"
               min="20"
               max="100"
               step="1"
