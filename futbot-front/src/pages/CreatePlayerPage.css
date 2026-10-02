@@ -1,0 +1,12 @@
+.create-player-page {
+  box-sizing: border-box;
+  width: min(100%, 640px);
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: left;
+}
+
+.create-player-page h1 {
+  margin: 0 0 12px;
+  font-size: 32px;
+}

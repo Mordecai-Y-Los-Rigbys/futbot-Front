@@ -3,6 +3,7 @@ import { useState } from 'react';
 import Register from '../pages/Register';
 import LoginScreen from '../pages/Login';
 import Behaviors from '../pages/Behaviors';
+import CreatePlayerPage from '../pages/CreatePlayerPage';
 
 export default function AppRoutes() {
   // El estado vive acá para que no se pierda al navegar entre pantallas
@@ -15,6 +16,7 @@ export default function AppRoutes() {
         <Route path="/registro" element={<Register />} />
         <Route path="/login" element={<LoginScreen form={loginForm} setForm={setLoginForm} />} />
         <Route path="/behaviors" element={<Behaviors />} />
+        <Route path="/players/new" element={<CreatePlayerPage />} />
       </Routes>
     </BrowserRouter>
   );
