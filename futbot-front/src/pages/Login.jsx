@@ -1,17 +1,24 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { loginUser } from "../services/authService";
+import { useAuth } from "../context/AuthContext.jsx";
 
 
 function LoginScreen({ form, setForm }) {
 
+    const navigate = useNavigate();
+    const { setUser } = useAuth();
+
     const [errorMessage, setErrorMessage] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
+
+    
     const handleChange = (e) => {
         const { name, value } = e.target;
         setForm((prev) => ({ ...prev, [name]: value }));
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault(); // evita que el navegador recargue y mande los datos por la URL
         setErrorMessage(null);
 
@@ -21,9 +28,30 @@ function LoginScreen({ form, setForm }) {
             return;
         }
         
-        loginUser()
-    };
+        setIsLoading(true);
 
+        // Crear el payload esperado por el backend
+        const payload = {
+            email: form.email,
+            password: form.password,
+        };
+        try{
+            const user = await loginUser(payload);
+            
+            setUser(user); // Esto es la funcion del authContext que guarda el usuario en el estado global de la app
+            navigate("/"); // ajustar a la pantalla principal del club cuando exista
+        } catch (err) {
+            if (err.response?.status === 401) {
+                setErrorMessage("Credenciales inválidas.");
+            } else if (err.response) {
+                setErrorMessage("Error en el servidor. Intentá nuevamente.");
+            } else {
+                setErrorMessage("No se pudo establecer conexión con el servidor.");
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    }
 
     return (
         <>
@@ -44,7 +72,8 @@ function LoginScreen({ form, setForm }) {
                 disabled={isLoading}
                 style={{
                     display: 'block',
-                    width: '100%',
+                    height: '40px',
+                    width: '15%',
                     padding: '10px',
                     backgroundColor: isLoading ? '#9e9e9e' : '#1976d2',
                     color: 'white',
