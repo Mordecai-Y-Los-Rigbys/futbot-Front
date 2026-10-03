@@ -9,6 +9,8 @@ const INITIAL_STATS = {
   strength: 20,
 };
 
+const MAX_POINTS = 300;
+
 const STAT_LABELS = {
   power: 'Power',
   agility: 'Agility',
@@ -21,7 +23,7 @@ export default function CreatePlayerPage() {
   const [name, setName] = useState('');
   const [stats, setStats] = useState(INITIAL_STATS);
   const pointsUsed = Object.values(stats).reduce((total, value) => total + value, 0);
-  const pointsRemaining = 300 - pointsUsed;
+  const pointsRemaining = MAX_POINTS - pointsUsed;
   const validationErrors = [];
 
   if (!name.trim()) {
@@ -36,7 +38,7 @@ export default function CreatePlayerPage() {
     }
   });
 
-  if (pointsUsed !== 300) {
+  if (pointsUsed !== MAX_POINTS) {
     validationErrors.push(
       pointsRemaining > 0
         ? `Asigná los ${pointsRemaining} puntos restantes.`
@@ -85,7 +87,7 @@ export default function CreatePlayerPage() {
         ))}
       </fieldset>
       <p className="create-player-page__points" aria-live="polite">
-        Puntos usados: <strong>{pointsUsed} / {300}</strong>
+        Puntos usados: <strong>{pointsUsed} / {MAX_POINTS}</strong>
         {' — '}
         {pointsRemaining > 0
           ? `Faltan ${pointsRemaining} puntos`
