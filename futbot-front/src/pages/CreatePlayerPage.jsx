@@ -20,6 +20,29 @@ const STAT_LABELS = {
 export default function CreatePlayerPage() {
   const [name, setName] = useState('');
   const [stats, setStats] = useState(INITIAL_STATS);
+  const pointsUsed = Object.values(stats).reduce((total, value) => total + value, 0);
+  const pointsRemaining = 300 - pointsUsed;
+  const validationErrors = [];
+
+  if (!name.trim()) {
+    validationErrors.push('Ingresá el nombre del jugador.');
+  } else if (name.length > 20) {
+    validationErrors.push('El nombre no puede superar los 20 caracteres.');
+  }
+
+  Object.entries(stats).forEach(([stat, value]) => {
+    if (!Number.isInteger(value) || value < 20 || value > 100) {
+      validationErrors.push(`${STAT_LABELS[stat]} debe estar entre 20 y 100.`);
+    }
+  });
+
+  if (pointsUsed !== 300) {
+    validationErrors.push(
+      pointsRemaining > 0
+        ? `Asigná los ${pointsRemaining} puntos restantes.`
+        : `Sobran ${Math.abs(pointsRemaining)} puntos.`,
+    );
+  }
 
   const handleStatChange = (event) => {
     const { name: stat, value } = event.target;
@@ -61,6 +84,20 @@ export default function CreatePlayerPage() {
           </div>
         ))}
       </fieldset>
+      <p className="create-player-page__points" aria-live="polite">
+        Puntos usados: <strong>{pointsUsed} / {300}</strong>
+        {' — '}
+        {pointsRemaining > 0
+          ? `Faltan ${pointsRemaining} puntos`
+          : pointsRemaining < 0
+            ? `Sobran ${Math.abs(pointsRemaining)} puntos`
+            : 'Total exacto'}
+      </p>
+      {validationErrors.length > 0 && (
+        <ul className="create-player-page__validation" aria-label="Validaciones pendientes">
+          {validationErrors.map((message) => <li key={message}>{message}</li>)}
+        </ul>
+      )}
     </main>
   );
 }

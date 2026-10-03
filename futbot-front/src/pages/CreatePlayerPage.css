@@ -79,3 +79,15 @@
   width: 100%;
   accent-color: var(--accent);
 }
+
+.create-player-page__points {
+  margin: 20px 0 12px;
+  color: var(--text-h);
+}
+
+.create-player-page__validation {
+  margin: 0;
+  padding-left: 22px;
+  color: #de1918;
+  font-size: 14px;
+}
