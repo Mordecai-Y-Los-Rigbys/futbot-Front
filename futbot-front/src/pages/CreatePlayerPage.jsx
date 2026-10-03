@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { createPlayer } from '../services/playerService';
 import './CreatePlayerPage.css';
 
+// Estadisticas iniciales para los sliders.
 const INITIAL_STATS = {
   power: 20,
   agility: 20,
@@ -13,6 +14,7 @@ const INITIAL_STATS = {
 
 const MAX_POINTS = 300;
 
+// Claves del payload y sus etiquetas correspondientes.
 const STAT_LABELS = {
   power: 'Power',
   agility: 'Agility',
@@ -23,22 +25,27 @@ const STAT_LABELS = {
 
 export default function CreatePlayerPage() {
   const navigate = useNavigate();
+  // Estado local de los datos editables y del feedback de la petición.
   const [name, setName] = useState('');
   const [stats, setStats] = useState(INITIAL_STATS);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const redirectTimer = useRef(null);
+
+  // El total y los errores se derivan del formulario para mantenerse sincronizados con cada cambio.
   const pointsUsed = Object.values(stats).reduce((total, value) => total + value, 0);
   const pointsRemaining = MAX_POINTS - pointsUsed;
   const validationErrors = [];
 
+  // Comprueba nombre y estadísticas.
   if (!name.trim()) {
     validationErrors.push('Ingresá el nombre del jugador.');
   } else if (name.length > 20) {
     validationErrors.push('El nombre no puede superar los 20 caracteres.');
   }
 
+  // Comprueba el rango individual de cada estadística.
   Object.entries(stats).forEach(([stat, value]) => {
     if (!Number.isInteger(value) || value < 20 || value > 100) {
       validationErrors.push(`${STAT_LABELS[stat]} debe estar entre 20 y 100.`);
@@ -55,13 +62,16 @@ export default function CreatePlayerPage() {
 
   const isFormValid = validationErrors.length === 0;
 
+  // Evita que una redirección pendiente intente navegar tras desmontar la pantalla.
   useEffect(() => () => window.clearTimeout(redirectTimer.current), []);
 
+  // Actualiza solo la estadística cuyo slider cambió.
   const handleStatChange = (event) => {
     const { name: stat, value } = event.target;
     setStats((currentStats) => ({ ...currentStats, [stat]: Number(value) }));
   };
 
+  // Envía únicamente formularios válidos y administra los estados de carga, éxito y error.
   const handleSubmit = async (event) => {
     event.preventDefault();
     setErrorMessage('');
@@ -70,6 +80,7 @@ export default function CreatePlayerPage() {
 
     setIsSubmitting(true);
     try {
+      // Solo se envian los datos del nuevo jugador, el id lo saca el back.
       await createPlayer({
         name: name.trim(),
         ...stats,
@@ -77,6 +88,7 @@ export default function CreatePlayerPage() {
       setSuccessMessage('¡Jugador creado correctamente! Redirigiendo al listado…');
       redirectTimer.current = window.setTimeout(() => navigate('/players'), 1200);
     } catch (error) {
+      // Prioriza el mensaje de la API y muestra un fallback si la respuesta no incluye uno.
       setErrorMessage(
         error.response?.data?.message
           || 'No se pudo crear el jugador. Revisá los datos e intentá nuevamente.',
@@ -92,6 +104,7 @@ export default function CreatePlayerPage() {
       <p>Creá un nuevo jugador para tu club.</p>
       {errorMessage && <p className="create-player-page__error" role="alert">{errorMessage}</p>}
       {successMessage && <p className="create-player-page__toast" role="status">{successMessage}</p>}
+      {/* noValidate es para mostrar validaciones propias y tambien el contador de puntos. */}
       <form onSubmit={handleSubmit} noValidate>
         <div className="create-player-page__field">
           <label htmlFor="player-name">Nombre</label>
@@ -107,6 +120,7 @@ export default function CreatePlayerPage() {
         </div>
         <fieldset className="create-player-page__stats">
           <legend>Estadísticas</legend>
+          {/* Los sliders usan los nombres del payload y muestran su valor actual. */}
           {Object.entries(STAT_LABELS).map(([stat, label]) => (
             <div className="create-player-page__stat" key={stat}>
               <label htmlFor={`player-${stat}`}>{label}</label>
@@ -138,6 +152,7 @@ export default function CreatePlayerPage() {
             {validationErrors.map((message) => <li key={message}>{message}</li>)}
           </ul>
         )}
+        {/* El bonton no deja enviar hasta cumplir con todo lo que se pide. */}
         <button
           className="create-player-page__submit"
           type="submit"
