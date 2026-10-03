@@ -6,7 +6,6 @@ import { useState } from 'react';
 import Register from '../pages/Register';
 import Leagues from '../pages/Leagues';
 import LoginScreen from '../pages/Login';
-import Behaviors from '../pages/Behaviors';
 
 export default function AppRoutes() {
   // El estado vive acá para que no se pierda al navegar entre pantallas
