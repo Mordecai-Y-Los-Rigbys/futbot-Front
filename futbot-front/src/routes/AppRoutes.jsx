@@ -6,6 +6,7 @@ import { useState } from 'react';
 import Register from '../pages/Register';
 import Leagues from '../pages/Leagues';
 import LoginScreen from '../pages/Login';
+import JoinFriendly from '../pages/JoinFriendly'
 
 export default function AppRoutes() {
   // El estado vive acá para que no se pierda al navegar entre pantallas
@@ -24,6 +25,7 @@ export default function AppRoutes() {
         <Route path="/login" element={<LoginScreen form={loginForm} setForm={setLoginForm} />} />
         <Route path="/behaviors" element={<Behaviors />} />
         <Route path="/leagues" element={<Leagues />} />
+        <Route path="/friendlies/:id/members" element={<JoinFriendly />} />
       </Routes>
     </BrowserRouter>
   );
