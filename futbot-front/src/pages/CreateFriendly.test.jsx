@@ -57,7 +57,7 @@ describe('CreateFriendly (SCRUM-89)', () => {
   });
 
   it('crea el partido exitosamente y navega a la vista de espera con el ID correspondiente', async () => {
-    vi.spyOn(friendlyService, 'createFriendlyMatch').mockResolvedValue({ id: 88, status: 'scheduled' });
+    vi.spyOn(friendlyService, 'createFriendlyMatch').mockResolvedValue({ id: 100, status: 'scheduled' });
     const onCloseMock = vi.fn();
 
     render(
@@ -83,7 +83,7 @@ describe('CreateFriendly (SCRUM-89)', () => {
 
     await waitFor(() => {
       expect(onCloseMock).toHaveBeenCalled();
-      expect(mockNavigate).toHaveBeenCalledWith('/matches/88');
+      expect(mockNavigate).toHaveBeenCalledWith('/matches/100');
     });
   });
 });
