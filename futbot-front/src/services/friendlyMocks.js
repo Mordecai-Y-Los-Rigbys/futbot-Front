@@ -27,3 +27,34 @@ export async function joinFriendlyMatchMock(friendlyId, members) {
     members,
   };
 }
+
+export async function getPlayersMock() {
+  await wait(MOCK_DELAY_MS);
+  return [
+    { id: 1, name: 'Lionel Messi', defaultBehaviorId: 10 },
+    { id: 2, name: 'Rodrigo De Paul', defaultBehaviorId: 11 },
+    { id: 3, name: 'Cristian Romero', defaultBehaviorId: 12 },
+    { id: 4, name: 'Emiliano Martínez', defaultBehaviorId: 13 },
+    { id: 5, name: 'Ángel Di María', defaultBehaviorId: 14 },
+    { id: 6, name: 'Julián Álvarez', defaultBehaviorId: 15 },
+    { id: 7, name: 'Alexis Mac Allister', defaultBehaviorId: 16 },
+  ];
+}
+
+export async function createFriendlyMatchMock(data) {
+  await wait(MOCK_DELAY_MS);
+
+  if (data.name === 'error400') {
+    throw httpError(400, { code: 'invalidTeam', message: 'Alineación o formato inválido.' });
+  }
+  if (data.name === 'error409') {
+    throw httpError(409, { code: 'alreadyPlaying', message: 'Ya tienes un partido activo.' });
+  }
+
+  return {
+    id: 100,
+    name: data.name,
+    status: 'scheduled',
+    createdAt: new Date().toISOString(),
+  };
+}
