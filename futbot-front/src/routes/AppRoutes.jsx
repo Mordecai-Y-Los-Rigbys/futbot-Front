@@ -8,8 +8,6 @@ import Leagues from '../pages/Leagues';
 import CreateLeague from '../pages/CreateLeague';
 import LoginScreen from '../pages/Login';
 import Match from '../pages/Match';
-import JoinFriendly from '../pages/JoinFriendly';
-import CreateFriendly from '../pages/CreateFriendly';
 import Players from '../pages/Players';
 import CreatePlayerPage from '../pages/CreatePlayerPage';
 import JoinFriendly from '../pages/JoinFriendly'
@@ -30,19 +28,13 @@ export default function AppRoutes() {
           <Route path=":id" element={<BehaviorDetail />} />
         </Route>
         <Route path="/leagues" element={<Leagues />} />
-        <Route path="/friendlies/new" element={<CreateFriendly />} />
-        <Route path="/friendlies/:id/members" element={<JoinFriendly />} />
-        {/* Sala de espera + partido en vivo: todo lo resuelve <Match /> */}
-        <Route path="/matches/:id" element={<Match />} />
         <Route path="/registro" element={<Register />} />
         <Route path="/login" element={<LoginScreen form={loginForm} setForm={setLoginForm} />} />
         <Route path="/players" element={<Players />} />
         <Route path="/players/new" element={<CreatePlayerPage />} />
-        <Route path="/leagues" element={<Leagues />} />
         <Route path="/leagues/create" element={<CreateLeague />} />
-        <Route path="/friendlies/:id/members" element={<JoinFriendly />} />
-        <Route path="/matches/:id" element={<MatchWaitingRoom />} />
         <Route path="/friendlies/new" element={<CreateFriendly />} />
+        <Route path="/friendlies/:id/members" element={<JoinFriendly />} />
         <Route path="/friendlies" element={<Friendlies />} />
       </Routes>
     </BrowserRouter>
