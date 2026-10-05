@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import styles from './Home.module.css';
-import { useState } from 'react';
-import { useLocation } from 'react-router-dom';
 
 
 const SECCIONES = [
