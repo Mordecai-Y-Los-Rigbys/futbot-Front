@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { buildWsUrl, createMatchConnection } from '../services/matchService';
+import { createMatchConnection, openMatchSocket } from '../services/matchService';
 
 const MAX_RETRIES = 3;
 const DEFAULT_TICK_MS = 50; // 20 ticks por segundo
@@ -13,7 +13,16 @@ const CLOSE_MESSAGES = {
   matchFinished: 'Partido finalizado.',
   matchCancelled: 'El partido fue cancelado.',
   tooManyConnections: 'Error de conexión: ya tenés demasiadas pestañas abiertas con este partido.',
-  waitExpired: 'Nadie se unió a tu amistoso y el partido fue cancelado.',
+  waitExpired: 'Nadie se unió a tu amistoso en 15 minutos y el partido fue cancelado.',
+};
+
+// Respaldo por código cuando el cierre no trae un `reason` conocido.
+const CLOSE_CODE_MESSAGES = {
+  4401: 'Error de validación al conectar con el partido.',
+  4403: 'Error de validación al conectar con el partido.',
+  4404: 'El partido no existe.',
+  4409: 'El partido ya no está disponible (finalizado o cancelado).',
+  4429: 'Error de conexión: ya tenés demasiadas pestañas abiertas con este partido.',
 };
 
 const REST_ERROR_MESSAGES = {
@@ -37,7 +46,7 @@ const INITIAL_META = {
 };
 
 /**
- * Se conecta al WebSocket del partido.
+ * Se conecta al WebSocket del partido (pide el tokenWs por REST y abre el socket).
  *
  * Devuelve:
  * - status: 'connecting' | 'open' | 'reconnecting' | 'closed'
@@ -45,7 +54,7 @@ const INITIAL_META = {
  *   { prev, curr, currAt, intervalMs, snapNext }
  * - meta: marcador, reloj, fase, etc. Solo cambia cuando cambia algo visible (≈1/seg),
  *   así React no re-renderiza 20 veces por segundo.
- * - fatal: mensaje si hay que sacar al usuario del partido (la página redirige).
+ * - fatal: { message, to } si hay que sacar al usuario del partido (la página redirige a `to`).
  */
 export default function useMatchWebSocket(matchId) {
   const streamRef = useRef({ prev: null, curr: null, currAt: 0, intervalMs: DEFAULT_TICK_MS, snapNext: false });
@@ -67,10 +76,10 @@ export default function useMatchWebSocket(matchId) {
     setStatus('connecting');
     setFatal(null);
 
-    const fail = (message) => {
+    const fail = (message, to = '/') => {
       if (disposed) return;
       setStatus('closed');
-      setFatal(message);
+      setFatal({ message, to });
     };
 
     const scheduleRetry = () => {
@@ -135,7 +144,7 @@ export default function useMatchWebSocket(matchId) {
       }
       // 1008, 4xxx (handshake rechazado) o 1000/waitExpired: no se reconecta.
       if (code === 1008 || (code >= 4000 && code < 5000) || code === 1000) {
-        fail(CLOSE_MESSAGES[reason] ?? 'Error de conexión con el partido.');
+        fail(CLOSE_MESSAGES[reason] ?? CLOSE_CODE_MESSAGES[code] ?? 'Error de conexión con el partido.');
         return;
       }
       // Caída de red (1006, etc.): el token es reutilizable, se reintenta.
@@ -147,7 +156,7 @@ export default function useMatchWebSocket(matchId) {
         const { tokenWs } = await createMatchConnection(matchId);
         if (disposed) return;
 
-        socket = new WebSocket(buildWsUrl(matchId, tokenWs));
+        socket = openMatchSocket(matchId, tokenWs);
         socket.onopen = () => {
           attempts = 0;
           setStatus('open');
@@ -164,8 +173,9 @@ export default function useMatchWebSocket(matchId) {
         socket.onclose = handleClose;
       } catch (err) {
         if (disposed) return;
-        const message = REST_ERROR_MESSAGES[err.response?.status];
-        if (message) fail(message);
+        const httpStatus = err.response?.status;
+        const message = REST_ERROR_MESSAGES[httpStatus];
+        if (message) fail(message, httpStatus === 401 ? '/login' : '/');
         else scheduleRetry(); // sin respuesta o 5xx
       }
     }

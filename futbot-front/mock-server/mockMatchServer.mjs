@@ -20,7 +20,7 @@ import { randomBytes } from 'node:crypto';
 import { WebSocketServer } from 'ws';
 import { createSimulator, TICK_MS } from './matchSimulator.mjs';
 
-const PORT = Number(process.env.PORT ?? 8000);
+const PORT = Number(process.env.PORT ?? 8001);
 const WAIT_SECONDS = Number(process.env.MOCK_WAIT_SECONDS ?? 3);
 const PERIOD_SECONDS = Number(process.env.MOCK_PERIOD_SECONDS ?? 20);
 
