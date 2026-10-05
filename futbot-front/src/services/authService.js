@@ -11,7 +11,10 @@ export const loginUser = async (credentials) => {
   return response.data;
 };
 
-
+export async function getCurrentUser() {
+  const { data } = await api.get('/users/me');
+  return data;
+}
 
 export const registerUser = async (userData) => {
   const response = await api.post('/auth/register', userData);

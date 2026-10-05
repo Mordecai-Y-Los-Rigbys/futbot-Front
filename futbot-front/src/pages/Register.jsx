@@ -185,11 +185,11 @@ export default function Register() {
             onChange={handleChange}
             style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
           >
-            <option value={1}>Avatar 1</option>
-            <option value={2}>Avatar 2</option>
-            <option value={3}>Avatar 3</option>
-            <option value={4}>Avatar 4</option>
-            <option value={5}>Avatar 5</option>
+            <option value={1}>Belgrano</option>
+            <option value={2}>Boca</option>
+            <option value={3}>Instituto</option>
+            <option value={4}>River</option>
+            <option value={5}>Talleres</option>
           </select>
         </div>
 
@@ -212,7 +212,7 @@ export default function Register() {
       </form>
 
       <div style={{ marginTop: '16px', textAlign: 'center', fontSize: '14px' }}>
-        ¿Ya tienes cuenta? <Link to="/login" style={{ color: '#1976d2' }}>Inicia sesión</Link>
+        ¿Ya tienes cuenta? <Link to="/login" style={{ color: '#5fbf49' }}>Inicia sesión</Link>
       </div>
     </div>
   );

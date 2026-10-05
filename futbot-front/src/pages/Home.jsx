@@ -1,5 +1,19 @@
-import { useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import styles from './Home.module.css';
+
+// Accesos rápidos de la pantalla de inicio. Para sumar una sección, agregar un item.
+const SECCIONES = [
+  {
+    to: '/leagues',
+    titulo: 'Ligas',
+    descripcion: 'Explorá las ligas disponibles, uníte a una o creá la tuya.',
+  },
+  {
+    to: '/friendlies',
+    titulo: 'Amistosos',
+    descripcion: 'Buscá un rival, uníte a un partido o armá uno nuevo.',
+  },
+];
 
 export default function Home() {
   // Mensaje que deja otra pantalla al redirigir (ej: el partido se cerró o falló la conexión).
@@ -7,32 +21,15 @@ export default function Home() {
   const [notice, setNotice] = useState(location.state?.notice ?? null);
 
   return (
-    <main style={{ padding: '2rem', fontFamily: 'sans-serif' }}>
-      {notice && (
-        <div
-          role="alert"
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: '16px',
-            maxWidth: '560px',
-            margin: '0 auto 1.5rem',
-            padding: '12px 16px',
-            border: '1px solid var(--accent-border)',
-            background: 'var(--accent-bg)',
-            borderRadius: '6px',
-            color: 'var(--text-h)',
-            textAlign: 'left',
-          }}
-        >
-          <span>{notice}</span>
-          <button type="button" onClick={() => setNotice(null)} aria-label="Cerrar aviso">×</button>
-        </div>
-      )}
-      <h1>FutBot</h1>
-      <p>Bienvenido a la plataforma de simulación de fútbol 3v3.</p>
-      <h2>Prueba Hot Reload Docker</h2>
+    <main className={styles.home}>
+      <nav className={styles.cards} aria-label="Secciones">
+        {SECCIONES.map((seccion) => (
+          <Link key={seccion.to} to={seccion.to} className={styles.card}>
+            <h2>{seccion.titulo}</h2>
+            <p>{seccion.descripcion}</p>
+          </Link>
+        ))}
+      </nav>
     </main>
   );
 }

@@ -1,17 +1,8 @@
 import axios from 'axios';
 
-
 const MOCK_DELAY_MS = 350;
 let nextPlayerId = 9;
 
-export async function createPlayerMock(playerData) {
-  await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY_MS));
-
-  return {
-    id: nextPlayerId++,
-    ...playerData,
-  };
-};
 export const MOCK_PLAYERS = [
   { id: 1, name: 'Lionel Messi' },
   { id: 2, name: 'Julián Álvarez' },
@@ -40,7 +31,16 @@ const wait = (ms, signal) =>
     signal?.addEventListener('abort', onAbort, { once: true });
   });
 
+export async function createPlayerMock(playerData) {
+  await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY_MS));
+
+  return {
+    id: nextPlayerId++,
+    ...playerData,
+  };
+}
+
 export async function getPlayersMock(page = 1, { signal } = {}) {
   await wait(MOCK_DELAY_MS, signal);
   return [...MOCK_PLAYERS];
-};
+}
