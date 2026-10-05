@@ -10,13 +10,9 @@ const LINKS = [
 ];
 
 function Header() {
-  const { user, logout } = useAuth();
+
   const navigate = useNavigate();
 
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login', { replace: true });
-  };
 
   return (
     <header className={styles.header}>
@@ -35,9 +31,7 @@ function Header() {
             </NavLink>
           ))}
         </div>
-        <button type="button" className={styles.logout} onClick={handleLogout}>
-          Logout
-        </button>
+
       </nav>
     </header>
   );

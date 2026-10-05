@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { getCurrentUser, logOut } from '../services/authService';
+
 
 export const AuthContext = createContext(null);
 
@@ -51,23 +51,9 @@ export function AuthProvider({ children }) {
     }
   }, [user]);
 
-  const logout = useCallback(async () => {
-    try {
-      await logOut();
-    } catch {
-      // Si falla (por ejemplo 401 porque la sesión ya expiró), igual limpiamos el estado local.
-    } finally {
-      try {
-        localStorage.removeItem(SESSION_FLAG); // cierre voluntario: no es "sesión expirada"
-      } catch {
-        // nada
-      }
-      setUser(null);
-    }
-  }, []);
 
   return (
-    <AuthContext.Provider value={{ user, setUser, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, setUser, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

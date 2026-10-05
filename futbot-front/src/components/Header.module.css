@@ -65,19 +65,3 @@
   background: rgba(255, 255, 255, 0.22);
   font-weight: 700;
 }
-
-.logout {
-  padding: 0.4rem 0.9rem;
-  border: 1px solid white;
-  border-radius: 8px;
-  background: transparent;
-  color: white;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.logout:hover {
-  background: white;
-  color: #1b4e0e;
-}
