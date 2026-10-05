@@ -11,7 +11,7 @@ export async function createPlayerMock(playerData) {
     id: nextPlayerId++,
     ...playerData,
   };
-
+};
 export const MOCK_PLAYERS = [
   { id: 1, name: 'Lionel Messi' },
   { id: 2, name: 'Julián Álvarez' },
@@ -43,4 +43,4 @@ const wait = (ms, signal) =>
 export async function getPlayersMock(page = 1, { signal } = {}) {
   await wait(MOCK_DELAY_MS, signal);
   return [...MOCK_PLAYERS];
-}
+};

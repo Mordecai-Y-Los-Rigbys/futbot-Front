@@ -23,3 +23,18 @@ export async function createMatchConnectionMock(matchId) {
     tokenWs: `mock_ws_token_match_${matchId}_${Date.now()}`,
   };
 }
+
+// Socket falso para desarrollar sin backend: abre y queda en silencio,
+// o sea, la pantalla muestra "Esperando al rival…".
+export function createMatchSocketMock() {
+  const timer = setTimeout(() => socket.onopen?.(), 100);
+  const socket = {
+    onopen: null,
+    onmessage: null,
+    onclose: null,
+    close() {
+      clearTimeout(timer);
+    },
+  };
+  return socket;
+}
