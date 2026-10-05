@@ -58,6 +58,42 @@
   outline-offset: 2px;
 }
 
+.create-league__submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 24px;
+  padding: 12px 16px;
+  border: 1px solid var(--accent-border);
+  border-radius: 6px;
+  background: var(--accent-bg);
+  color: var(--text-h);
+  font: inherit;
+  cursor: pointer;
+}
+
+.create-league__submit:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.create-league__spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: create-league-spin 0.7s linear infinite;
+}
+
+@keyframes create-league-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media (max-width: 620px) {
   .create-league {
     padding: 1rem;
