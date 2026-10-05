@@ -17,13 +17,30 @@ export async function createMatchConnection(matchId) {
 }
 
 /**
+ * Base absoluta (ws:// o wss://) para el WebSocket.
+ * - http(s)://...  -> se cambia el protocolo (http -> ws, https -> wss).
+ * - ws(s)://...    -> se usa tal cual.
+ * - relativa ("/api") o vacía -> se resuelve contra window.location, con wss si la
+ *   página está en https y ws si no. Sin esto quedaría "/api/ws/..." y
+ *   new WebSocket() tira SyntaxError.
+ */
+function resolveWsBase(rawBase) {
+  const base = (rawBase || '').trim().replace(/\/+$/, '');
+  if (/^wss?:\/\//i.test(base)) return base;
+  if (/^https?:\/\//i.test(base)) return base.replace(/^http/i, 'ws');
+
+  const { protocol, host } = window.location;
+  const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:';
+  const path = base && !base.startsWith('/') ? `/${base}` : base;
+  return `${wsProtocol}//${host}${path}`;
+}
+
+/**
  * URL del WebSocket. Usa VITE_WS_URL si existe; si no, deriva la base de la URL
- * de la API REST (http -> ws, https -> wss).
+ * de la API REST. Ver resolveWsBase para los casos de URL relativa o vacía.
  */
 export function buildWsUrl(matchId, tokenWs) {
-  const base = (import.meta.env.VITE_WS_URL || api.defaults.baseURL || '')
-    .replace(/^http/, 'ws')
-    .replace(/\/$/, '');
+  const base = resolveWsBase(import.meta.env.VITE_WS_URL || api.defaults.baseURL);
   return `${base}/ws/matches/${encodeURIComponent(matchId)}?token=${encodeURIComponent(tokenWs)}`;
 }
 

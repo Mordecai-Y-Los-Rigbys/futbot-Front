@@ -36,6 +36,7 @@ export default function AppRoutes() {
         <Route path="/friendlies/new" element={<CreateFriendly />} />
         <Route path="/friendlies/:id/members" element={<JoinFriendly />} />
         <Route path="/friendlies" element={<Friendlies />} />
+        <Route path="/matches/:id" element={<Match />} />
       </Routes>
     </BrowserRouter>
   );
