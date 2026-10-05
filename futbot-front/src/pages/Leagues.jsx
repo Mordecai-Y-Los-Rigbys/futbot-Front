@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { getLeagues, PAGE_SIZE } from '../services/leagueService';
 import './Leagues.css';
@@ -158,7 +158,12 @@ export default function Leagues() {
 
   return (
     <main className="leagues">
-      <h1>Ligas</h1>
+      <header className="leagues__header">
+        <h1>Ligas</h1>
+        <Link className="leagues__create" to="/leagues/create">
+          Crear Liga
+        </Link>
+      </header>
 
       <div className="leagues__search">
         <label htmlFor="league-search">Buscar por nombre</label>
