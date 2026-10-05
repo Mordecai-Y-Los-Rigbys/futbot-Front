@@ -1,31 +1,31 @@
 /* Usa las variables de color definidas en index.css (modo claro y oscuro). */
-.behaviors {
+.leagues {
   padding: 2rem;
   text-align: left;
-  max-width: 640px;
+  max-width: 720px;
   margin: 0 auto;
   width: 100%;
   box-sizing: border-box;
 }
 
-.behaviors h1 {
+.leagues h1 {
   font-size: 32px;
   margin: 0 0 24px;
 }
 
-.behaviors__search {
+.leagues__search {
   display: flex;
   flex-direction: column;
   gap: 6px;
   margin-bottom: 20px;
 }
 
-.behaviors__search label {
+.leagues__search label {
   font-size: 15px;
   color: var(--text-h);
 }
 
-.behaviors input[type='search'] {
+.leagues input[type='search'] {
   font: inherit;
   color: var(--text-h);
   background: var(--bg);
@@ -34,14 +34,14 @@
   padding: 10px 12px;
 }
 
-.behaviors input[type='search']:focus-visible,
-.behaviors button:focus-visible,
-.behaviors__list a:focus-visible {
+.leagues input[type='search']:focus-visible,
+.leagues button:focus-visible,
+.leagues__row:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-.behaviors button {
+.leagues button {
   font: inherit;
   font-size: 15px;
   color: var(--text-h);
@@ -52,51 +52,93 @@
   cursor: pointer;
 }
 
-.behaviors button:disabled {
+.leagues button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 
-.behaviors__count {
-  font-size: 15px;
-  margin-bottom: 8px;
-}
-
-.behaviors__list {
+.leagues__list {
   list-style: none;
   margin: 0;
   padding: 0;
   border-top: 1px solid var(--border);
 }
 
-.behaviors__list[aria-busy='true'] {
+.leagues__list[aria-busy='true'] {
   opacity: 0.5;
 }
 
-.behaviors__list li {
+.leagues__list li {
   border-bottom: 1px solid var(--border);
 }
 
-/* Todo el renglón es clickeable, no solo el texto. */
-.behaviors__list a {
-  display: block;
+/* Todo el renglón es clickeable. Dos líneas: nombre + datos de la liga / creador. */
+.leagues__row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  grid-template-areas:
+    'name status capacity privacy'
+    'creator creator creator creator';
+  align-items: center;
+  column-gap: 16px;
+  row-gap: 2px;
   padding: 12px 4px;
   color: var(--text-h);
-  text-decoration: none;
+  cursor: pointer;
+}
+
+.leagues__row:hover {
+  background: var(--accent-bg);
+}
+
+.leagues__name {
+  grid-area: name;
+  font-weight: 500;
   overflow-wrap: anywhere;
 }
 
-.behaviors__list a:hover {
-  background: var(--accent-bg);
-  color: var(--accent);
+.leagues__creator {
+  grid-area: creator;
+  font-size: 14px;
+  color: var(--text);
+  overflow-wrap: anywhere;
 }
 
-.behaviors__status {
+.leagues__status {
+  grid-area: status;
+  font-size: 14px;
+}
+
+.leagues__capacity {
+  grid-area: capacity;
+  font-family: var(--mono);
+  font-size: 14px;
+}
+
+.leagues__privacy {
+  grid-area: privacy;
+}
+
+@media (max-width: 520px) {
+  .leagues__row {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      'name privacy'
+      'creator creator'
+      'status capacity';
+  }
+
+  .leagues__capacity {
+    justify-self: end;
+  }
+}
+
+.leagues__message {
   padding: 32px 0;
   text-align: center;
 }
 
-.behaviors__error {
+.leagues__error {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -108,7 +150,7 @@
   color: var(--text-h);
 }
 
-.behaviors__pagination {
+.leagues__pagination {
   display: flex;
   align-items: center;
   justify-content: space-between;

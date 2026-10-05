@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Behaviors from './Behaviors';
 import { getBehaviors } from '../services/behaviorService';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 vi.mock('../services/behaviorService', () => ({
   getBehaviors: vi.fn(),
@@ -22,9 +23,14 @@ const flush = (ms = 0) =>
   });
 
 const renderPage = async () => {
-  render(<Behaviors />);
-  await flush();
+    render(
+        <MemoryRouter>
+            <Behaviors />
+        </MemoryRouter>,
+    );
+    await flush();
 };
+
 
 const searchInput = () => screen.getByLabelText('Buscar por nombre');
 const button = (name) => screen.getByRole('button', { name });
@@ -237,6 +243,43 @@ describe('Behaviors', () => {
       await renderPage();
 
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+  });
+
+    describe('enlaces al detalle', () => {
+    it('cada nombre es un link a /behaviors/{id}', async () => {
+      getBehaviors.mockResolvedValue(
+        response([
+          { id: 101, name: 'Defensor' },
+          { id: 102, name: 'Atacante' },
+        ]),
+      );
+ 
+      await renderPage();
+ 
+      expect(screen.getByRole('link', { name: 'Defensor' })).toHaveAttribute('href', '/behaviors/101');
+      expect(screen.getByRole('link', { name: 'Atacante' })).toHaveAttribute('href', '/behaviors/102');
+    });
+ 
+    it('hacer clic en un behavior navega a su detalle', async () => {
+      getBehaviors.mockResolvedValue(response([{ id: 101, name: 'Defensor' }]));
+ 
+      render(
+        <MemoryRouter initialEntries={['/behaviors']}>
+          <Routes>
+            <Route path="/behaviors" element={<Behaviors />}>
+              <Route path=":id" element={<p>PAGINA DETALLE</p>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>,
+      );
+      await flush();
+ 
+      fireEvent.click(screen.getByRole('link', { name: 'Defensor' }));
+ 
+      expect(screen.getByText('PAGINA DETALLE')).toBeInTheDocument();
+      // El detalle se abre encima: la lista sigue montada detrás.
+      expect(screen.getByRole('link', { name: 'Defensor' })).toBeInTheDocument();
     });
   });
 
