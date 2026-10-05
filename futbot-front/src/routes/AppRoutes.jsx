@@ -8,6 +8,7 @@ import Leagues from '../pages/Leagues';
 import LoginScreen from '../pages/Login';
 import JoinFriendly from '../pages/JoinFriendly'
 import CreateFriendly from '../pages/CreateFriendly';
+import Friendlies from '../pages/Friendlies';
 
 export default function AppRoutes() {
   // El estado vive acá para que no se pierda al navegar entre pantallas
@@ -28,6 +29,7 @@ export default function AppRoutes() {
         <Route path="/leagues" element={<Leagues />} />
         <Route path="/friendlies/:id/members" element={<JoinFriendly />} />
         <Route path="/friendlies/new" element={<CreateFriendly />} />
+        <Route path="/friendlies" element={<Friendlies />} />
       </Routes>
     </BrowserRouter>
   );
