@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import api from './api';
-import { getLeagues } from './leagueService';
+import { createLeague, getLeagues } from './leagueService';
 
-vi.mock('./api', () => ({ default: { get: vi.fn() } }));
+vi.mock('./api', () => ({ default: { get: vi.fn(), post: vi.fn() } }));
 
 describe('getLeagues', () => {
   beforeEach(() => {
@@ -56,5 +56,42 @@ describe('getLeagues', () => {
     api.get.mockRejectedValue(new Error('boom'));
 
     await expect(getLeagues('', 1)).rejects.toThrow('boom');
+  });
+});
+
+describe('createLeague', () => {
+  beforeEach(() => {
+    api.post.mockReset();
+  });
+
+  it('envía el body completo a POST /leagues y devuelve la liga creada', async () => {
+    const leagueData = {
+      name: 'Liga de prueba',
+      minParticipants: 3,
+      maxParticipants: 8,
+      matchDuration: 10,
+      private: false,
+      password: null,
+      members: [
+        { playerId: 1, role: 'forward', behaviorId: 11 },
+        { playerId: 2, role: 'midfield', behaviorId: 12 },
+        { playerId: 3, role: 'defense', behaviorId: 13 },
+        { playerId: 4, role: 'substitute', behaviorId: 14 },
+        { playerId: 5, role: 'substitute', behaviorId: 15 },
+        { playerId: 6, role: 'substitute', behaviorId: 16 },
+      ],
+    };
+    const createdLeague = { id: 42, name: 'Liga de prueba' };
+    api.post.mockResolvedValue({ data: createdLeague });
+
+    await expect(createLeague(leagueData)).resolves.toEqual(createdLeague);
+
+    expect(api.post).toHaveBeenCalledExactlyOnceWith('/leagues', leagueData);
+  });
+
+  it('propaga el error si el POST falla', async () => {
+    api.post.mockRejectedValue(new Error('boom'));
+
+    await expect(createLeague({})).rejects.toThrow('boom');
   });
 });

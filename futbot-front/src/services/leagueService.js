@@ -30,3 +30,14 @@ export async function getLeagues(name, page = 1, { signal } = {}) {
   });
   return data;
 }
+
+/**
+ * Crea una liga (POST /leagues). La cookie de sesión viaja automáticamente
+ * porque `api` usa `withCredentials: true`.
+ * @param {CreateLeagueRequest} leagueData Datos completos de la liga, incluidos sus members.
+ * @returns {Promise<LeagueSummary>} Liga creada por el backend.
+ */
+export async function createLeague(leagueData) {
+  const { data } = await api.post('/leagues', leagueData);
+  return data;
+}
