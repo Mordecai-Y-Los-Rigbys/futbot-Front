@@ -1,10 +1,10 @@
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import styles from './Home.module.css';
 import { useState } from 'react';
 import { useLocation } from 'react-router-dom';
 
 
-// Accesos rápidos de la pantalla de inicio. Para sumar una sección, agregar un item.
 const SECCIONES = [
   {
     to: '/leagues',
@@ -19,12 +19,17 @@ const SECCIONES = [
 ];
 
 export default function Home() {
-  // Mensaje que deja otra pantalla al redirigir (ej: el partido se cerró o falló la conexión).
   const location = useLocation();
-  const [notice, setNotice] = useState(location.state?.notice ?? null);
+  const [notice, setNotice] = useState(location.state?.notice ?? false);
 
   return (
     <main className={styles.home}>
+      {notice && (
+        <div className={styles.notice} role="alert">
+          {notice}
+        </div>
+      )}
+
       <nav className={styles.cards} aria-label="Secciones">
         {SECCIONES.map((seccion) => (
           <Link key={seccion.to} to={seccion.to} className={styles.card}>

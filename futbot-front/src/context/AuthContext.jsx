@@ -3,16 +3,6 @@ import { getCurrentUser } from '../services/authService.js';
 
 export const AuthContext = createContext(null);
 
-const SESSION_FLAG = 'futbot_had_session';
-
-// Lo usa RequireAuth para saber si el usuario tuvo sesión antes en este navegador
-export function hadPreviousSession() {
-  try {
-    return localStorage.getItem(SESSION_FLAG) === '1';
-  } catch {
-    return false;
-  }
-}
 
 export function AuthProvider({ children }) {
   // { id, username, clubName } cuando hay sesión, null cuando no
