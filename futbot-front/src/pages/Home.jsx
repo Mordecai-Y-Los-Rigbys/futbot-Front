@@ -16,6 +16,10 @@ const SECCIONES = [
 ];
 
 export default function Home() {
+  // Mensaje que deja otra pantalla al redirigir (ej: el partido se cerró o falló la conexión).
+  const location = useLocation();
+  const [notice, setNotice] = useState(location.state?.notice ?? null);
+
   return (
     <main className={styles.home}>
       <nav className={styles.cards} aria-label="Secciones">
