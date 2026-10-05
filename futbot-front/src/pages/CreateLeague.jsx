@@ -63,8 +63,9 @@ export default function CreateLeague() {
     name.length <= 20 &&
     Number(minParticipants) >= 3 &&
     Number(maxParticipants) >= Number(minParticipants) &&
-    Number(matchDuration) > 0 &&
-    (!isPrivate || password.length > 0) &&
+    Number(matchDuration) >= 1 &&
+    Number(matchDuration) <= 10 &&
+    (!isPrivate || (password.length > 0 && password.length <= 72)) &&
     Array.isArray(members) &&
     members.length === 6;
 
@@ -151,6 +152,7 @@ export default function CreateLeague() {
                 type="number"
                 name="matchDuration"
                 min="1"
+                max="10"
                 value={matchDuration}
                 onChange={(event) =>
                   setMatchDuration(event.target.value === '' ? '' : Number(event.target.value))
@@ -178,6 +180,7 @@ export default function CreateLeague() {
                 type="password"
                 name="password"
                 value={password}
+                maxLength={72}
                 onChange={(event) => setPassword(event.target.value)}
                 required
               />
