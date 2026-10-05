@@ -11,10 +11,6 @@ export const loginUser = async (credentials) => {
   return response.data;
 };
 
-export async function logOut() {
-  await api.post('/auth/log-out');
-}
-
 export async function getCurrentUser() {
   const { data } = await api.get('/users/me');
   return data;

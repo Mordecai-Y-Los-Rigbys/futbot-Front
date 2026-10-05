@@ -7,12 +7,11 @@ const LINKS = [
   { to: '/leagues', label: 'Ligas' },
   { to: '/friendlies', label: 'Amistosos' },
   { to: '/players', label: 'Mis jugadores' },
+  { to: '/behaviors', label: 'Mis comportamientos' },
 ];
 
 function Header() {
-
-  const navigate = useNavigate();
-
+  const { user } = useAuth();
 
   return (
     <header className={styles.header}>

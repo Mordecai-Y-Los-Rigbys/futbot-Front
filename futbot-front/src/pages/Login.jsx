@@ -98,7 +98,7 @@ function LoginScreen({ form, setForm }) {
         </form>
 
         <p className={styles.footer}>
-          ¿Aún no tienes cuenta? <Link to="/registro">Regístrate aquí</Link>
+          ¿Aún no tienes cuenta? <Link to="/register">Regístrate aquí</Link>
         </p>
       </div>
     </main>
