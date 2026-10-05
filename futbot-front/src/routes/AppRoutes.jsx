@@ -5,6 +5,7 @@ import BehaviorDetail from '../pages/BehaviorDetail';
 import { useState } from 'react';
 import Register from '../pages/Register';
 import Leagues from '../pages/Leagues';
+import CreateLeague from '../pages/CreateLeague';
 import LoginScreen from '../pages/Login';
 import Behaviors from '../pages/Behaviors';
 import Players from '../pages/Players';
@@ -33,6 +34,7 @@ export default function AppRoutes() {
         <Route path="/players" element={<Players />} />
         <Route path="/players/new" element={<CreatePlayerPage />} />
         <Route path="/leagues" element={<Leagues />} />
+        <Route path="/leagues/create" element={<CreateLeague />} />
         <Route path="/friendlies/:id/members" element={<JoinFriendly />} />
         <Route path="/matches/:id" element={<MatchWaitingRoom />} />
         <Route path="/friendlies/new" element={<CreateFriendly />} />

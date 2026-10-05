@@ -9,6 +9,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:league": "vitest run src/pages/CreateLeague.test.jsx src/components/TeamBuilderForm.test.jsx src/services/leagueService.test.js",
     "test:watch": "vitest"
   },
   "dependencies": {

@@ -44,6 +44,7 @@ const renderPage = async () => {
     <MemoryRouter initialEntries={['/leagues']}>
       <Routes>
         <Route path="/leagues" element={<Leagues />} />
+        <Route path="/leagues/create" element={<p>PANTALLA CREAR LIGA</p>} />
         <Route path="/leagues/:id" element={<DetailStub />} />
       </Routes>
     </MemoryRouter>,
@@ -149,6 +150,14 @@ describe('Leagues', () => {
   });
 
   describe('navegación al detalle', () => {
+    it('ofrece acceso a la pantalla para crear una liga', async () => {
+      await renderPage();
+
+      fireEvent.click(screen.getByRole('link', { name: 'Crear Liga' }));
+
+      expect(screen.getByText('PANTALLA CREAR LIGA')).toBeInTheDocument();
+    });
+
     it('hacer clic en una fila navega a /leagues/{id}', async () => {
       getLeagues.mockResolvedValue(response([makeLeague({ id: 7, name: 'Liga Siete' })]));
       await renderPage();
