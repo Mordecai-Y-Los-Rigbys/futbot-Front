@@ -1,8 +1,7 @@
 import axios from 'axios';
 
 // Datos falsos para desarrollar sin backend. Se activan con VITE_USE_MOCKS=true
-// (ver leagueService.js). Imitan el contrato de GET /leagues: mismos campos, mismos
-// status de error y la forma de error que arma axios (`err.response.status`).
+// (ver leagueService.js). Imitan el contrato de la API y la forma de error de axios.
 
 // Mismo tamaño de página que el backend (se repite acá para no importar de leagueService
 // y evitar una dependencia circular).
@@ -40,8 +39,22 @@ const LEAGUES = Array.from({ length: 5 }, (_, i) => {
   };
 });
 
-const httpError = (status) =>
-  Object.assign(new Error(`HTTP ${status} (mock)`), { response: { status } });
+const httpError = (status, data = {}) =>
+  Object.assign(new Error(`HTTP ${status} (mock)`), { response: { status, data } });
+
+const MOCK_CREATE_ERRORS = {
+  'mock-400': { status: 400, data: { code: 'invalidFieldType', message: 'Datos de prueba inválidos.' } },
+  'mock-401': { status: 401, data: { message: 'La sesión mock expiró.' } },
+  'mock-409': {
+    status: 409,
+    data: {
+      code: 'playerOrBehaviorNotOwned',
+      message: 'Alguno de los jugadores o comportamientos seleccionados no te pertenece (mock).',
+    },
+  },
+};
+
+let nextLeagueId = LEAGUES.length + 1;
 
 // Espera `ms`, pero se corta con un error de cancelación si se aborta el signal
 // (igual que haría axios), para que el AbortController de la pantalla funcione.
@@ -83,4 +96,27 @@ export async function getLeaguesMock(name, page = 1, { signal } = {}) {
     pageSize: MOCK_PAGE_SIZE,
     total: filtered.length,
   };
+}
+
+// POST /leagues. Usá mock-400, mock-401 o mock-409 como nombre para probar errores.
+export async function createLeagueMock(leagueData) {
+  await wait(MOCK_DELAY_MS);
+
+  const error = MOCK_CREATE_ERRORS[leagueData.name.trim().toLowerCase()];
+  if (error) throw httpError(error.status, error.data);
+
+  const league = {
+    id: nextLeagueId,
+    name: leagueData.name,
+    creator: { id: 1, username: 'vos', name: 'Tu equipo' },
+    status: 'preparation',
+    participantsCount: 1,
+    maxParticipants: leagueData.maxParticipants,
+    private: leagueData.private,
+    createdAt: new Date().toISOString(),
+  };
+  nextLeagueId += 1;
+  LEAGUES.unshift(league);
+
+  return { ...league, creator: { ...league.creator } };
 }

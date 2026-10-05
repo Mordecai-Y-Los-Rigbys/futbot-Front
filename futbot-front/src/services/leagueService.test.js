@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import api from './api';
 import { createLeague, getLeagues } from './leagueService';
+import { createLeagueMock, getLeaguesMock } from './leagueMocks';
 
 vi.mock('./api', () => ({ default: { get: vi.fn(), post: vi.fn() } }));
 
@@ -93,5 +94,46 @@ describe('createLeague', () => {
     api.post.mockRejectedValue(new Error('boom'));
 
     await expect(createLeague({})).rejects.toThrow('boom');
+  });
+});
+
+describe('createLeagueMock', () => {
+  it('crea una liga en preparación y la agrega al listado mock', async () => {
+    const leagueData = {
+      name: 'Liga manual test',
+      minParticipants: 3,
+      maxParticipants: 8,
+      matchDuration: 10,
+      private: false,
+      password: null,
+      members: [],
+    };
+
+    const league = await createLeagueMock(leagueData);
+
+    expect(league).toMatchObject({
+      name: leagueData.name,
+      status: 'preparation',
+      participantsCount: 1,
+      maxParticipants: leagueData.maxParticipants,
+      private: false,
+    });
+    await expect(getLeaguesMock('Liga manual test')).resolves.toMatchObject({
+      total: 1,
+      items: [expect.objectContaining({ id: league.id, name: leagueData.name })],
+    });
+  });
+
+  it.each([
+    ['mock-400', 400, 'invalidFieldType'],
+    ['mock-401', 401, undefined],
+    ['mock-409', 409, 'playerOrBehaviorNotOwned'],
+  ])('para el nombre %s devuelve el error HTTP %i', async (name, status, code) => {
+    await expect(createLeagueMock({ name })).rejects.toMatchObject({
+      response: {
+        status,
+        data: expect.objectContaining(code ? { code } : {}),
+      },
+    });
   });
 });

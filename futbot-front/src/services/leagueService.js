@@ -1,5 +1,5 @@
 import api from './api';
-import { getLeaguesMock } from './leagueMocks';
+import { createLeagueMock, getLeaguesMock } from './leagueMocks';
 
 // El backend responde siempre de a 50 elementos; el cliente no puede cambiarlo.
 export const PAGE_SIZE = 50;
@@ -38,6 +38,8 @@ export async function getLeagues(name, page = 1, { signal } = {}) {
  * @returns {Promise<LeagueSummary>} Liga creada por el backend.
  */
 export async function createLeague(leagueData) {
+  if (USE_MOCKS) return createLeagueMock(leagueData);
+
   const { data } = await api.post('/leagues', leagueData);
   return data;
 }

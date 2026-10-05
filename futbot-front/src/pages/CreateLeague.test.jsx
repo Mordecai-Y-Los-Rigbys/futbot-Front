@@ -113,12 +113,12 @@ describe('CreateLeague', () => {
     fireEvent.change(leagueName, { target: { value: 'Liga de prueba' } });
     fireEvent.change(minParticipants, { target: { value: '4' } });
     fireEvent.change(maxParticipants, { target: { value: '12' } });
-    fireEvent.change(matchDuration, { target: { value: '15' } });
+    fireEvent.change(matchDuration, { target: { value: '10' } });
 
     expect(leagueName).toHaveValue('Liga de prueba');
     expect(minParticipants).toHaveValue(4);
     expect(maxParticipants).toHaveValue(12);
-    expect(matchDuration).toHaveValue(15);
+    expect(matchDuration).toHaveValue(10);
   });
 
   it('limpia y deshabilita la contraseña cuando la liga se hace pública', async () => {
@@ -157,6 +157,33 @@ describe('CreateLeague', () => {
     fireEvent.change(screen.getByLabelText('Máximo de participantes'), {
       target: { value: '4' },
     });
+    expect(screen.getByRole('button', { name: 'Crear Liga' })).toBeEnabled();
+  });
+
+  it('deshabilita el envío si la duración del partido supera los 10 minutos', async () => {
+    await renderPage();
+    fillLeagueDetails();
+
+    const matchDuration = screen.getByLabelText('Duración del partido (minutos)');
+    fireEvent.change(matchDuration, { target: { value: '11' } });
+    expect(screen.getByRole('button', { name: 'Crear Liga' })).toBeDisabled();
+
+    fireEvent.change(matchDuration, { target: { value: '10' } });
+    expect(screen.getByRole('button', { name: 'Crear Liga' })).toBeEnabled();
+  });
+
+  it('limita a 72 caracteres la contraseña de una liga privada', async () => {
+    await renderPage();
+    fillLeagueDetails();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Privada' }));
+
+    const password = screen.getByLabelText('Contraseña');
+    expect(password).toHaveAttribute('maxLength', '72');
+
+    fireEvent.change(password, { target: { value: 'x'.repeat(73) } });
+    expect(screen.getByRole('button', { name: 'Crear Liga' })).toBeDisabled();
+
+    fireEvent.change(password, { target: { value: 'x'.repeat(72) } });
     expect(screen.getByRole('button', { name: 'Crear Liga' })).toBeEnabled();
   });
 
