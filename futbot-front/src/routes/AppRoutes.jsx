@@ -14,7 +14,6 @@ import CreateLeague from '../pages/CreateLeague';
 import Friendlies from '../pages/Friendlies';
 import CreateFriendly from '../pages/CreateFriendly';
 import JoinFriendly from '../pages/JoinFriendly';
-import MatchWaitingRoom from '../pages/MatchWaitingRoom';
 import Players from '../pages/Players';
 import CreatePlayerPage from '../pages/CreatePlayerPage';
 
@@ -59,9 +58,6 @@ export default function AppRoutes() {
             <Route path="/friendlies" element={<Friendlies />} />
             <Route path="/friendlies/new" element={<CreateFriendlyPage />} />
             <Route path="/friendlies/:id/members" element={<JoinFriendly />} />
-
-            {/* Partido: sala de espera / transmisión */}
-            <Route path="/matches/:id" element={<MatchWaitingRoom />} />
 
             {/* Jugadores */}
             <Route path="/players" element={<Players />} />
