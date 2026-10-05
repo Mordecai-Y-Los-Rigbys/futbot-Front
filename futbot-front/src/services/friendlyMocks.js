@@ -58,3 +58,60 @@ export async function createFriendlyMatchMock(data) {
     createdAt: new Date().toISOString(),
   };
 }
+
+export async function getAvailableFriendliesMock({ page = 1, name = '' } = {}) {
+  await wait(MOCK_DELAY_MS);
+
+  if (name === 'error401') {
+    throw httpError(401, { message: 'Sin sesión válida.' });
+  }
+  if (name === 'error500') {
+    throw httpError(500, { message: 'Error interno del servidor.' });
+  }
+
+  const mockMatches = [
+    {
+      id: 1,
+      name: 'Amistoso de Campeones',
+      status: 'scheduled',
+      club1: { id: 10, username: 'scaloni', name: 'La Scaloneta FC' },
+      club2: null,
+      scheduledAt: null,
+      createdAt: '2026-10-03T18:00:00Z',
+      result: null,
+    },
+    {
+      id: 2,
+      name: 'Práctica Táctica 3v3',
+      status: 'scheduled',
+      club1: { id: 11, username: 'guardiola', name: 'Manchester City' },
+      club2: null,
+      scheduledAt: null,
+      createdAt: '2026-10-03T18:05:00Z',
+      result: null,
+    },
+    {
+      id: 3,
+      name: 'Desafío Abierto',
+      status: 'scheduled',
+      club1: { id: 12, username: 'bielsa', name: 'Leeds Cordobés' },
+      club2: null,
+      scheduledAt: null,
+      createdAt: '2026-10-03T18:10:00Z',
+      result: null,
+    },
+  ];
+
+  let filtered = mockMatches;
+  if (name.trim() !== '') {
+    const searchLower = name.trim().toLowerCase();
+    filtered = filtered.filter((m) => m.name.toLowerCase().includes(searchLower));
+  }
+
+  return {
+    items: filtered,
+    page: Number(page),
+    pageSize: 50,
+    total: filtered.length,
+  };
+}

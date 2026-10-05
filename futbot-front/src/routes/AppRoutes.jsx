@@ -5,10 +5,16 @@ import Behaviors from '../pages/Behaviors';
 import BehaviorDetail from '../pages/BehaviorDetail';
 import Register from '../pages/Register';
 import Leagues from '../pages/Leagues';
+import CreateLeague from '../pages/CreateLeague';
 import LoginScreen from '../pages/Login';
 import Match from '../pages/Match';
 import JoinFriendly from '../pages/JoinFriendly';
 import CreateFriendly from '../pages/CreateFriendly';
+import Players from '../pages/Players';
+import CreatePlayerPage from '../pages/CreatePlayerPage';
+import JoinFriendly from '../pages/JoinFriendly'
+import CreateFriendly from '../pages/CreateFriendly';
+import Friendlies from '../pages/Friendlies';
 
 export default function AppRoutes() {
   // El estado vive acá para que no se pierda al navegar entre pantallas
@@ -30,6 +36,14 @@ export default function AppRoutes() {
         <Route path="/matches/:id" element={<Match />} />
         <Route path="/registro" element={<Register />} />
         <Route path="/login" element={<LoginScreen form={loginForm} setForm={setLoginForm} />} />
+        <Route path="/players" element={<Players />} />
+        <Route path="/players/new" element={<CreatePlayerPage />} />
+        <Route path="/leagues" element={<Leagues />} />
+        <Route path="/leagues/create" element={<CreateLeague />} />
+        <Route path="/friendlies/:id/members" element={<JoinFriendly />} />
+        <Route path="/matches/:id" element={<MatchWaitingRoom />} />
+        <Route path="/friendlies/new" element={<CreateFriendly />} />
+        <Route path="/friendlies" element={<Friendlies />} />
       </Routes>
     </BrowserRouter>
   );

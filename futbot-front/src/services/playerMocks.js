@@ -1,6 +1,16 @@
 import axios from 'axios';
 
-const MOCK_DELAY_MS = 300;
+
+const MOCK_DELAY_MS = 350;
+let nextPlayerId = 9;
+
+export async function createPlayerMock(playerData) {
+  await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY_MS));
+
+  return {
+    id: nextPlayerId++,
+    ...playerData,
+  };
 
 export const MOCK_PLAYERS = [
   { id: 1, name: 'Lionel Messi' },
