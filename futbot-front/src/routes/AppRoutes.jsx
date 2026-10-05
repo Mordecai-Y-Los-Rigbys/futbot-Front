@@ -8,6 +8,7 @@ import Leagues from '../pages/Leagues';
 import LoginScreen from '../pages/Login';
 import JoinFriendly from '../pages/JoinFriendly'
 import CreateFriendly from '../pages/CreateFriendly';
+import Friendlies from '../pages/Friendlies';
 import MatchWaitingRoom from '../pages/MatchWaitingRoom';
 
 export default function AppRoutes() {
@@ -30,6 +31,7 @@ export default function AppRoutes() {
         <Route path="/friendlies/:id/members" element={<JoinFriendly />} />
         <Route path="/matches/:id" element={<MatchWaitingRoom />} />
         <Route path="/friendlies/new" element={<CreateFriendly />} />
+        <Route path="/friendlies" element={<Friendlies />} />
       </Routes>
     </BrowserRouter>
   );
