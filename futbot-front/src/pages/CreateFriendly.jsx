@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getPlayers } from '../services/playerService';
 import { createFriendlyMatch } from '../services/friendlyService';
+import { getBehaviors } from '../services/behaviorService';
 import './CreateFriendly.css';
 
 const TITULARES = [
@@ -16,23 +17,30 @@ const SUPLENTES = [
   { key: 'sub3', label: 'Suplente 3', role: 'substitute' },
 ];
 
+const EMPTY_SELECTION = {
+  forward: '',
+  midfield: '',
+  defense: '',
+  sub1: '',
+  sub2: '',
+  sub3: '',
+};
+
 export default function CreateFriendly({ isOpen = true, onClose }) {
   const navigate = useNavigate();
 
   const [matchName, setMatchName] = useState('');
   const [players, setPlayers] = useState([]);
+  const [behaviors, setBehaviors] = useState([]);
   const [isLoadingPlayers, setIsLoadingPlayers] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const [selectedPositions, setSelectedPositions] = useState({
-    forward: '',
-    midfield: '',
-    defense: '',
-    sub1: '',
-    sub2: '',
-    sub3: '',
-  });
+  const [selectedPositions, setSelectedPositions] = useState(EMPTY_SELECTION);
+  const [selectedBehaviors, setSelectedBehaviors] = useState(EMPTY_SELECTION);
+
+  // Si se usa como popup, cierra con onClose; si se usa como ruta, vuelve al listado.
+  const handleClose = onClose ?? (() => navigate('/friendlies'));
 
   useEffect(() => {
     if (!isOpen) return;
@@ -41,11 +49,13 @@ export default function CreateFriendly({ isOpen = true, onClose }) {
     setIsLoadingPlayers(true);
     setErrorMessage('');
 
-    getPlayers()
-      .then((data) => {
-        if (isMounted) {
-          setPlayers(Array.isArray(data) ? data : data.players || []);
-        }
+    Promise.all([getPlayers(), getBehaviors('', 1)])
+      .then(([playersData, behaviorsData]) => {
+        if (!isMounted) return;
+        setPlayers(Array.isArray(playersData) ? playersData : playersData.players || []);
+        setBehaviors(
+          Array.isArray(behaviorsData) ? behaviorsData : (behaviorsData?.items ?? []),
+        );
       })
       .catch((err) => {
         if (isMounted) {
@@ -78,12 +88,21 @@ export default function CreateFriendly({ isOpen = true, onClose }) {
     setErrorMessage('');
   };
 
+  const handleBehaviorChange = (positionKey, behaviorId) => {
+    setSelectedBehaviors((prev) => ({
+      ...prev,
+      [positionKey]: behaviorId,
+    }));
+    setErrorMessage('');
+  };
+
   const isFormComplete = useMemo(() => {
     const trimmedName = matchName.trim();
     const hasValidName = trimmedName.length > 0 && trimmedName.length <= 20;
     const allPositionsFilled = Object.values(selectedPositions).every((val) => val !== '');
-    return hasValidName && allPositionsFilled && occupiedPlayerIds.size === 6;
-  }, [matchName, selectedPositions, occupiedPlayerIds]);
+    const allBehaviorsFilled = Object.values(selectedBehaviors).every((val) => val !== '');
+    return hasValidName && allPositionsFilled && allBehaviorsFilled && occupiedPlayerIds.size === 6;
+  }, [matchName, selectedPositions, selectedBehaviors, occupiedPlayerIds]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -93,15 +112,11 @@ export default function CreateFriendly({ isOpen = true, onClose }) {
     setErrorMessage('');
 
     const allRoles = [...TITULARES, ...SUPLENTES];
-    const membersPayload = allRoles.map(({ key, role }) => {
-      const pId = Number(selectedPositions[key]);
-      const playerObj = players.find((p) => p.id === pId);
-      return {
-        playerId: pId,
-        role: role,
-        behaviorId: playerObj?.behaviorId || playerObj?.defaultBehaviorId || 1,
-      };
-    });
+    const membersPayload = allRoles.map(({ key, role }) => ({
+      playerId: Number(selectedPositions[key]),
+      role,
+      behaviorId: Number(selectedBehaviors[key]),
+    }));
 
     try {
       const match = await createFriendlyMatch({
@@ -109,6 +124,7 @@ export default function CreateFriendly({ isOpen = true, onClose }) {
         members: membersPayload,
       });
 
+      // Solo onClose (no handleClose): si es ruta, no hay que ir al listado antes de ir al partido.
       if (onClose) onClose();
       navigate(`/matches/${match.id}`);
     } catch (err) {
@@ -134,13 +150,29 @@ export default function CreateFriendly({ isOpen = true, onClose }) {
         >
           <option value="">Seleccionar jugador</option>
           {players.map((player) => {
-            const isTakenElsewhere = occupiedPlayerIds.has(player.id) && Number(currentVal) !== player.id;
+            const isTakenElsewhere =
+              occupiedPlayerIds.has(player.id) && Number(currentVal) !== player.id;
             return (
               <option key={player.id} value={player.id} disabled={isTakenElsewhere}>
                 {player.name} {isTakenElsewhere ? '(Ocupado)' : ''}
               </option>
             );
           })}
+        </select>
+
+        <label htmlFor={`behavior-${key}`}>{label} - Comportamiento</label>
+        <select
+          id={`behavior-${key}`}
+          value={selectedBehaviors[key]}
+          onChange={(e) => handleBehaviorChange(key, e.target.value)}
+          disabled={isSubmitting}
+        >
+          <option value="">Seleccionar comportamiento</option>
+          {behaviors.map((b) => (
+            <option key={b.id} value={b.id}>
+              {b.name}
+            </option>
+          ))}
         </select>
       </div>
     );
@@ -158,7 +190,9 @@ export default function CreateFriendly({ isOpen = true, onClose }) {
         )}
 
         {isLoadingPlayers ? (
-          <p style={{ textAlign: 'center', color: '#94a3b8' }}>Cargando jugadores disponibles...</p>
+          <p style={{ textAlign: 'center', color: '#94a3b8' }}>
+            Cargando jugadores disponibles...
+          </p>
         ) : (
           <form onSubmit={handleSubmit} noValidate>
             <div className="create-friendly-group">
@@ -190,16 +224,14 @@ export default function CreateFriendly({ isOpen = true, onClose }) {
             </div>
 
             <div className="create-friendly-actions">
-              {onClose && (
-                <button
-                  type="button"
-                  className="create-friendly-btn-cancel"
-                  onClick={onClose}
-                  disabled={isSubmitting}
-                >
-                  Cancelar
-                </button>
-              )}
+              <button
+                type="button"
+                className="create-friendly-btn-cancel"
+                onClick={handleClose}
+                disabled={isSubmitting}
+              >
+                Cancelar
+              </button>
               <button
                 type="submit"
                 className="create-friendly-btn-submit"
