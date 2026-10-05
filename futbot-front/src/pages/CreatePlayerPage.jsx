@@ -88,9 +88,10 @@ export default function CreatePlayerPage() {
       setSuccessMessage('¡Jugador creado correctamente! Redirigiendo al listado…');
       redirectTimer.current = window.setTimeout(() => navigate('/players'), 1200);
     } catch (error) {
-      // Prioriza el mensaje de la API y muestra un fallback si la respuesta no incluye uno.
+      const responseData = error.response?.data;
       setErrorMessage(
-        error.response?.data?.message
+        responseData?.message
+          || (Array.isArray(responseData?.errors) ? responseData.errors.join(' ') : '')
           || 'No se pudo crear el jugador. Revisá los datos e intentá nuevamente.',
       );
     } finally {
@@ -116,6 +117,7 @@ export default function CreatePlayerPage() {
             onChange={(event) => setName(event.target.value)}
             maxLength={20}
             autoComplete="off"
+            disabled={isSubmitting || Boolean(successMessage)}
           />
         </div>
         <fieldset className="create-player-page__stats">
@@ -134,6 +136,7 @@ export default function CreatePlayerPage() {
                 step="1"
                 value={stats[stat]}
                 onChange={handleStatChange}
+                disabled={isSubmitting || Boolean(successMessage)}
               />
             </div>
           ))}
@@ -152,14 +155,23 @@ export default function CreatePlayerPage() {
             {validationErrors.map((message) => <li key={message}>{message}</li>)}
           </ul>
         )}
-        {/* El bonton no deja enviar hasta cumplir con todo lo que se pide. */}
-        <button
-          className="create-player-page__submit"
-          type="submit"
-          disabled={!isFormValid || isSubmitting || Boolean(successMessage)}
-        >
-          {isSubmitting ? 'Creando jugador…' : 'Crear jugador'}
-        </button>
+        <div className="create-player-page__actions">
+          <button
+            className="create-player-page__cancel"
+            type="button"
+            onClick={() => navigate('/players')}
+            disabled={isSubmitting || Boolean(successMessage)}
+          >
+            Cancelar
+          </button>
+          <button
+            className="create-player-page__submit"
+            type="submit"
+            disabled={!isFormValid || isSubmitting || Boolean(successMessage)}
+          >
+            {isSubmitting ? 'Creando jugador…' : 'Crear jugador'}
+          </button>
+        </div>
       </form>
     </main>
   );

@@ -6,14 +6,24 @@ import { createPlayer } from '../services/playerService';
 
 vi.mock('../services/playerService', () => ({ createPlayer: vi.fn() }));
 
-const renderPage = () => render(
-  <MemoryRouter initialEntries={['/players/new']}>
-    <Routes>
-      <Route path="/players/new" element={<CreatePlayerPage />} />
-      <Route path="/players" element={<p>Listado de jugadores</p>} />
-    </Routes>
-  </MemoryRouter>,
-);
+const mockedNavigate = vi.fn();
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => mockedNavigate,
+  };
+});
+
+const renderComponent = () =>
+  render(
+    <MemoryRouter initialEntries={['/players/new']}>
+      <Routes>
+        <Route path="/players/new" element={<CreatePlayerPage />} />
+        <Route path="/players" element={<div>Listado de Jugadores</div>} />
+      </Routes>
+    </MemoryRouter>,
+  );
 
 const makeValidForm = () => {
   fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Delantero' } });
@@ -25,6 +35,7 @@ const makeValidForm = () => {
 describe('CreatePlayerPage', () => {
   beforeEach(() => {
     createPlayer.mockReset();
+    mockedNavigate.mockReset();
   });
 
   afterEach(() => {
@@ -32,23 +43,23 @@ describe('CreatePlayerPage', () => {
   });
 
   it('muestra la pantalla inicial de creación de jugador', () => {
-    render(
-      <MemoryRouter>
-        <CreatePlayerPage />
-      </MemoryRouter>,
-    );
+    renderComponent();
 
     expect(screen.getByRole('heading', { name: 'Crear jugador' })).toBeInTheDocument();
     expect(screen.getByText('Creá un nuevo jugador para tu club.')).toBeInTheDocument();
     expect(screen.getByLabelText('Nombre')).toHaveAttribute('maxLength', '20');
   });
 
+  it('navega al listado al cancelar la creación', () => {
+    renderComponent();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+    expect(mockedNavigate).toHaveBeenCalledWith('/players');
+  });
+
   it('actualiza el valor controlado del nombre', () => {
-    render(
-      <MemoryRouter>
-        <CreatePlayerPage />
-      </MemoryRouter>,
-    );
+    renderComponent();
     const nameInput = screen.getByLabelText('Nombre');
 
     fireEvent.change(nameInput, { target: { value: 'Delantero' } });
@@ -58,11 +69,7 @@ describe('CreatePlayerPage', () => {
   });
 
   it('muestra las cinco estadísticas como sliders con rango de 20 a 100', () => {
-    render(
-      <MemoryRouter>
-        <CreatePlayerPage />
-      </MemoryRouter>,
-    );
+    renderComponent();
 
     ['Power', 'Agility', 'Control', 'Speed', 'Strength'].forEach((stat) => {
       const slider = screen.getByRole('slider', { name: stat });
@@ -73,11 +80,7 @@ describe('CreatePlayerPage', () => {
   });
 
   it('actualiza el valor visible de una estadística al mover el slider', () => {
-    render(
-      <MemoryRouter>
-        <CreatePlayerPage />
-      </MemoryRouter>,
-    );
+    renderComponent();
     const powerSlider = screen.getByRole('slider', { name: 'Power' });
     fireEvent.change(powerSlider, { target: { value: '75' } });
 
@@ -86,11 +89,7 @@ describe('CreatePlayerPage', () => {
   });
 
   it('muestra el total usado y los puntos restantes en tiempo real', () => {
-    render(
-      <MemoryRouter>
-        <CreatePlayerPage />
-      </MemoryRouter>,
-    );
+    renderComponent();
 
     expect(screen.getByText(/Puntos usados:/)).toHaveTextContent('100 / 300');
     expect(screen.getByText(/Puntos usados:/)).toHaveTextContent('Faltan 200 puntos');
@@ -103,7 +102,7 @@ describe('CreatePlayerPage', () => {
     expect(screen.getByText(/Puntos usados:/)).toHaveTextContent('Total exacto');
   });
   it('muestra las validaciones pendientes para nombre y total de estadísticas', () => {
-    renderPage();
+    renderComponent();
 
     expect(screen.getByRole('list', { name: 'Validaciones pendientes' })).toHaveTextContent(
       'Ingresá el nombre del jugador.',
@@ -118,7 +117,7 @@ describe('CreatePlayerPage', () => {
   });
 
   it('bloquea el envío cuando los datos son inválidos', () => {
-    renderPage();
+    renderComponent();
 
     expect(screen.getByRole('button', { name: 'Crear jugador' })).toBeDisabled();
     fireEvent.submit(screen.getByRole('heading', { name: 'Crear jugador' }).closest('main').querySelector('form'));
@@ -129,7 +128,7 @@ describe('CreatePlayerPage', () => {
   it('envía los datos válidos, muestra éxito y redirige a jugadores', async () => {
     vi.useFakeTimers();
     createPlayer.mockResolvedValue({ id: 1, name: 'Delantero' });
-    renderPage();
+    renderComponent();
     makeValidForm();
 
     fireEvent.click(screen.getByRole('button', { name: 'Crear jugador' }));
@@ -153,7 +152,7 @@ describe('CreatePlayerPage', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1200);
     });
-    expect(screen.getByText('Listado de jugadores')).toBeInTheDocument();
+    expect(mockedNavigate).toHaveBeenCalledWith('/players');
   });
 
   it('muestra el estado de carga mientras la petición está pendiente', async () => {
@@ -161,16 +160,26 @@ describe('CreatePlayerPage', () => {
     createPlayer.mockReturnValue(new Promise((resolve) => {
       resolveRequest = resolve;
     }));
-    renderPage();
+    renderComponent();
     makeValidForm();
 
     fireEvent.click(screen.getByRole('button', { name: 'Crear jugador' }));
 
     expect(screen.getByRole('button', { name: 'Creando jugador…' })).toBeDisabled();
+    expect(screen.getByLabelText('Nombre')).toBeDisabled();
+    ['Power', 'Agility', 'Control', 'Speed', 'Strength'].forEach((stat) => {
+      expect(screen.getByRole('slider', { name: stat })).toBeDisabled();
+    });
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeDisabled();
 
     await act(async () => {
       resolveRequest({ id: 1 });
       await Promise.resolve();
+    });
+
+    expect(screen.getByLabelText('Nombre')).toBeDisabled();
+    ['Power', 'Agility', 'Control', 'Speed', 'Strength'].forEach((stat) => {
+      expect(screen.getByRole('slider', { name: stat })).toBeDisabled();
     });
   });
 
@@ -178,7 +187,7 @@ describe('CreatePlayerPage', () => {
     createPlayer.mockRejectedValue({
       response: { data: { message: 'El nombre ya está en uso.' } },
     });
-    renderPage();
+    renderComponent();
     makeValidForm();
 
     fireEvent.click(screen.getByRole('button', { name: 'Crear jugador' }));
@@ -187,6 +196,25 @@ describe('CreatePlayerPage', () => {
     });
 
     expect(screen.getByRole('alert')).toHaveTextContent('El nombre ya está en uso.');
+    expect(screen.getByRole('heading', { name: 'Crear jugador' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Crear jugador' })).toBeEnabled();
+  });
+
+  it('muestra los errores de validación devueltos como lista por la API', async () => {
+    createPlayer.mockRejectedValue({
+      response: {
+        data: { errors: ['Power inválido.', 'El jugador ya existe.'] },
+      },
+    });
+    renderComponent();
+    makeValidForm();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Crear jugador' }));
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Power inválido. El jugador ya existe.');
     expect(screen.getByRole('heading', { name: 'Crear jugador' })).toBeInTheDocument();
   });
 });

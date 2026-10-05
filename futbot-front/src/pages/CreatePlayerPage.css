@@ -111,23 +111,41 @@
   background: #effaf2;
 }
 
-.create-player-page__submit {
-  width: 100%;
+.create-player-page__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
   margin-top: 20px;
+}
+
+.create-player-page__cancel,
+.create-player-page__submit {
   padding: 10px 16px;
-  border: 1px solid var(--accent-border);
   border-radius: 6px;
-  color: var(--text-h);
-  background: var(--accent-bg);
   font: inherit;
   cursor: pointer;
 }
 
+.create-player-page__cancel {
+  border: 1px solid var(--border);
+  color: var(--text-h);
+  background: var(--bg);
+}
+
+.create-player-page__submit {
+  flex: 1;
+  border: 1px solid var(--accent-border);
+  color: var(--text-h);
+  background: var(--accent-bg);
+}
+
+.create-player-page__cancel:disabled,
 .create-player-page__submit:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 
+.create-player-page__cancel:focus-visible,
 .create-player-page__submit:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
