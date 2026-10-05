@@ -1,5 +1,8 @@
 import { Link } from 'react-router-dom';
 import styles from './Home.module.css';
+import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
+
 
 // Accesos rápidos de la pantalla de inicio. Para sumar una sección, agregar un item.
 const SECCIONES = [
