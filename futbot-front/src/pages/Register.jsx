@@ -72,7 +72,7 @@ export default function Register() {
       await registerUser(formData);
       setSuccessMessage('¡Usuario registrado con éxito! Redirigiendo...');
       setTimeout(() => {
-        navigate('/login');
+        navigate('/');
       }, 1500);
     } catch (err) {
       if (err.response) {
