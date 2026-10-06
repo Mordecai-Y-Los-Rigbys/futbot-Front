@@ -1,13 +1,13 @@
 import api from './api';
 import { getPlayersMock } from './playerMocks';
 
-const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true';
+const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true' && import.meta.env.MODE !== 'test';
 
 export const getPlayers = async (page = 1, options = {}) => {
   if (USE_MOCKS) {
     return getPlayersMock(page, options);
   }
-  const response = await api.get('/players/me', {
+  const response = await api.get('/players', {
     params: { page },
     ...options,
   });
