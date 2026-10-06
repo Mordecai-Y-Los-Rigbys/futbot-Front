@@ -14,7 +14,7 @@ describe('getPlayers', () => {
     api.get.mockResolvedValue({ data: players });
 
     await expect(getPlayers(2)).resolves.toEqual(players);
-    expect(api.get).toHaveBeenCalledWith('/players', { params: { page: 2 } });
+    expect(api.get).toHaveBeenCalledWith('/players/me', { params: { page: 2 } });
   });
 
   it('acepta una respuesta de API con los jugadores dentro de items', async () => {

@@ -7,7 +7,7 @@ export const getPlayers = async (page = 1, options = {}) => {
   if (USE_MOCKS) {
     return getPlayersMock(page, options);
   }
-  const response = await api.get('/players', {
+  const response = await api.get('/players/me', {
     params: { page },
     ...options,
   });
