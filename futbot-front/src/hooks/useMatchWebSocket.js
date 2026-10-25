@@ -43,6 +43,9 @@ const INITIAL_META = {
   countdown: null, // { seconds, startedAt } del último periodStart
   goal: null, // { id, scoringClub } del último gol
   result: null, // { score1, score2 } al terminar
+  pauseReason: null, // 'hydration' | 'halftime' | null (null también si nos perdimos el evento pause)
+  pauseRemaining: null, // segundos que faltan, de pauseRemainingSeconds
+  pauseCount: 0, // cuántas pausas vio esta conexión; sirve de key para remontar el panel
 };
 
 /**
@@ -123,6 +126,16 @@ export default function useMatchWebSocket(matchId) {
       if (e?.type === 'matchEnd') {
         next.result = e.result;
         finished = true;
+      }
+      // Pausa: el motivo viaja solo en el evento `pause` (primer tick de la pausa);
+      // el tiempo restante viaja en todos los ticks.
+      if (tick.phase === 'paused') {
+        if (e?.type === 'pause') next.pauseReason = e.reason ?? null;
+        next.pauseRemaining = tick.pauseRemainingSeconds ?? null;
+        if (prev.phase !== 'paused') next.pauseCount = prev.pauseCount + 1;
+      } else {
+        next.pauseReason = null;
+        next.pauseRemaining = null;
       }
       if (tick.phase !== 'countdown') next.countdown = null;
 
