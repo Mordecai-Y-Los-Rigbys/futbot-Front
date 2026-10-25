@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { getNextSubstitutions } from '../services/matchService';
+import { getNextSubstitutions } from '../services/matchService.js';
 import './PausePanel.css';
 
 const PAUSE_TITLES = {
