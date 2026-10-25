@@ -38,3 +38,36 @@ export function createMatchSocketMock() {
   };
   return socket;
 }
+
+// Ids "trampa": 4031 -> 403, 4041 -> 404, 4091 -> 409, 0 -> ambos clubes sin cambios.
+export async function getNextSubstitutionsMock(matchId) {
+  await wait(300);
+
+  if (matchId === '4031') throw httpError(403, { message: 'El partido no te pertenece.' });
+  if (matchId === '4041') throw httpError(404, { message: 'El partido no existe.' });
+  if (matchId === '4091') throw httpError(409, { code: 'matchNotStarted', message: 'El partido no está en juego.' });
+  if (matchId === '0') return { club1: null, club2: null };
+
+  return {
+    club1: { starterName: 'Lionel Messi', substituteName: 'Ángel Di María' },
+    club2: null,
+  };
+}
+
+export async function getMatchMock(matchId) {
+  await wait(300);
+
+  if (matchId === '4031') throw httpError(403, { message: 'El partido no te pertenece.' });
+  if (matchId === '4041') throw httpError(404, { message: 'El partido no existe.' });
+
+  return {
+    id: Number(matchId),
+    name: 'Amistoso mock',
+    status: 'started',
+    club1: { id: 1, username: 'santi', name: 'FC Santi', avatar: 1 },
+    club2: { id: 2, username: 'rival', name: 'Rival FC', avatar: 4 },
+    scheduledAt: null,
+    createdAt: '2026-10-25T18:00:00Z',
+    result: null,
+  };
+}
