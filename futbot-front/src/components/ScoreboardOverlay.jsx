@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getAvatarSrc } from '../utils/avatars';
 import { TEAM_COLORS } from './Pitch2DCanvas';
+import PausePanel from './PausePanel';
 
 const GOAL_BANNER_MS = 3000;
 
@@ -28,7 +29,7 @@ function ClubBadge({ club, fallbackName, number }) {
 }
 
 export default function ScoreboardOverlay({ meta, roster, status, onExit }) {
-  const { score1, score2, elapsedTime, phase, periodNumber, countdown, goal, result } = meta;
+  const { score1, score2, elapsedTime, phase, periodNumber, countdown, goal, result, pauseReason, pauseRemaining, pauseCount } = meta;
   const [club1, club2] = roster?.clubs ?? [];
 
   // Segundos de cuenta regresiva que quedan (local, a partir del evento periodStart).
@@ -79,12 +80,21 @@ export default function ScoreboardOverlay({ meta, roster, status, onExit }) {
 
         {phase === 'countdown' && (
           <div className="countdown" role="status">
-            <span className="countdown__label">{periodNumber ? `Empieza el ${periodNumber}.º cuarto` : 'Empieza el partido'}</span>
-            {countdownLeft !== null && <span className="countdown__number" key={countdownLeft}>{countdownLeft}</span>}
+            {countdown ? (
+              <>
+                <span className="countdown__label">{periodNumber ? `Empieza el ${periodNumber}.º cuarto` : 'Empieza el partido'}</span>
+                {countdownLeft !== null && <span className="countdown__number" key={countdownLeft}>{countdownLeft}</span>}
+              </>
+            ) : (
+              // Conexión en medio de la cuenta: no llegó periodStart, no se sabe cuánto falta.
+              <span className="countdown__label">Reanudando…</span>
+            )}
           </div>
         )}
 
-        {phase === 'paused' && <p className="banner">Partido en pausa</p>}
+        {phase === 'paused' && (
+          <PausePanel key={pauseCount} reason={pauseReason} remainingSeconds={pauseRemaining} roster={roster} />
+        )}
 
         {visibleGoalId !== null && goal && (
           <div className="goal" key={visibleGoalId} role="status">
