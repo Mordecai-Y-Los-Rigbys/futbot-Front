@@ -120,3 +120,83 @@ export async function createLeagueMock(leagueData) {
 
   return { ...league, creator: { ...league.creator } };
 }
+const MOCK_CURRENT_USER = { id: 1, username: 'santi', name: 'FC Santi', avatar: 1 };
+const MOCK_LEAGUE_PASSWORD = '1234';
+const MOCK_MIN_PARTICIPANTS = 3;
+
+// Error con la forma que arma axios, incluyendo el `code` del body de error del contrato.
+const codedError = (status, code) =>
+  Object.assign(new Error(`HTTP ${status} ${code} (mock)`), {
+    response: { status, data: { code, message: code } },
+  });
+
+// Estado en memoria (se pierde al recargar la página).
+const participantsByLeague = new Map(); // leagueId -> participantes
+const unlockedLeagues = new Set(); // ids de ligas privadas desbloqueadas en la "sesión"
+
+function findLeague(id) {
+  const league = LEAGUES.find((item) => item.id === Number(id));
+  if (!league) throw codedError(404, 'notFound');
+  return league;
+}
+
+function participantsOf(league) {
+  if (!participantsByLeague.has(league.id)) {
+    participantsByLeague.set(league.id, [{ ...league.creator, avatar: 1 }]);
+  }
+  return participantsByLeague.get(league.id);
+}
+
+const isMemberOf = (league) =>
+  participantsOf(league).some((participant) => participant.id === MOCK_CURRENT_USER.id);
+
+// GET /leagues/{id}
+export async function getLeagueMock(id, { signal } = {}) {
+  await wait(MOCK_DELAY_MS, signal);
+  const league = findLeague(id);
+  return {
+    ...league,
+    creator: { ...league.creator },
+    participantsCount: participantsOf(league).length,
+    minParticipants: MOCK_MIN_PARTICIPANTS,
+    joined: isMemberOf(league),
+  };
+}
+
+// GET /leagues/{id}/participants
+export async function getLeagueParticipantsMock(id, { signal } = {}) {
+  await wait(MOCK_DELAY_MS, signal);
+  const league = findLeague(id);
+
+
+  return participantsOf(league).map((participant) => ({ ...participant }));
+}
+
+// POST /leagues/{id}/access
+export async function unlockLeagueMock(id, { password } = {}) {
+  await wait(MOCK_DELAY_MS);
+  const league = findLeague(id);
+
+  // Pública, creador o participante: no se evalúa la contraseña (igual que el servidor).
+  if (!league.private || isMemberOf(league)) {
+    if (league.private) unlockedLeagues.add(league.id);
+    return;
+  }
+  if (password !== MOCK_LEAGUE_PASSWORD) throw codedError(403, 'invalidLeaguePassword');
+  unlockedLeagues.add(league.id);
+}
+
+// POST /leagues/{id}/participants
+export async function joinLeagueMock(id, { password } = {}) {
+  await wait(MOCK_DELAY_MS);
+  const league = findLeague(id);
+  const participants = participantsOf(league);
+
+  if (league.status !== 'preparation') throw codedError(409, 'notInPreparation');
+  if (isMemberOf(league)) throw codedError(409, 'alreadyParticipating');
+  if (participants.length >= league.maxParticipants) throw codedError(409, 'leagueFull');
+  if (league.private && password !== MOCK_LEAGUE_PASSWORD) throw codedError(403, 'invalidLeaguePassword');
+
+  participants.push({ ...MOCK_CURRENT_USER });
+  if (league.private) unlockedLeagues.add(league.id); // unirse también desbloquea
+}
