@@ -49,9 +49,6 @@ export default function LeagueLobby() {
 
   const [isJoinOpen, setIsJoinOpen] = useState(false);
   const [notice, setNotice] = useState(null);
-
-  const [hasLeft, setHasLeft] = useState(false);
-
   // Carga la liga y sus participantes. Se cancela si el usuario se va antes de que respondan.
   useEffect(() => {
     const controller = new AbortController();
@@ -115,13 +112,7 @@ export default function LeagueLobby() {
     } finally {
       setIsCheckingPassword(false);
     }
-  };
-
-  const handleJoined = () => {
-    setIsJoinOpen(false);
-    setNotice('¡Te uniste a la liga!');
-    reload(); // vuelve a pedir la liga y los participantes para reflejar la inscripción
-  };
+  }
 
   if (screen === 'loading') {
     return <p role="status">Cargando liga…</p>;
@@ -176,7 +167,7 @@ export default function LeagueLobby() {
 
       {notice && <p role="status">{notice}</p>}
 
-      {(
+      {isReady ? (
         <section aria-label="Participantes">
           <h2>Participantes</h2>
           <ul className="league-lobby__participants">
@@ -188,7 +179,24 @@ export default function LeagueLobby() {
             ))}
           </ul>
         </section>
-      ) }
+      ) : (
+        <form className="league-lobby__password" onSubmit={handlePasswordSubmit}>
+          <p>Esta liga es privada. Ingresá la contraseña para ver quién participa y poder unirte.</p>
+          <label>
+            Contraseña de la liga
+            <input
+              type="password"
+              value={passwordInput}
+              maxLength={72}
+              onChange={(event) => setPasswordInput(event.target.value)}
+            />
+          </label>
+          {passwordError && <p role="alert">{passwordError}</p>}
+          <button type="submit" disabled={!passwordInput || isCheckingPassword}>
+            {isCheckingPassword ? 'Verificando…' : 'Ver participantes'}
+          </button>
+        </form>
+      )}
 
       {note && <p>{note}</p>}
 

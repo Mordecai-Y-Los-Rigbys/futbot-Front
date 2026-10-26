@@ -168,7 +168,9 @@ export async function getLeagueParticipantsMock(id, { signal } = {}) {
   await wait(MOCK_DELAY_MS, signal);
   const league = findLeague(id);
 
-
+  if (league.private && !isMemberOf(league) && !unlockedLeagues.has(league.id)) {
+    throw codedError(403, 'leagueAccessRequired');
+  }
   return participantsOf(league).map((participant) => ({ ...participant }));
 }
 
@@ -200,3 +202,4 @@ export async function joinLeagueMock(id, { password } = {}) {
   participants.push({ ...MOCK_CURRENT_USER });
   if (league.private) unlockedLeagues.add(league.id); // unirse también desbloquea
 }
+
