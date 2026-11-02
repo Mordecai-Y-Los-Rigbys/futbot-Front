@@ -1,0 +1,118 @@
+.match-behavior-panel {
+  position: absolute;
+  z-index: 2;
+  top: 76px;
+  right: 12px;
+  box-sizing: border-box;
+  width: min(320px, calc(100% - 24px));
+  max-height: calc(100% - 88px);
+  overflow: auto;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 10px;
+  background: rgba(10, 14, 12, 0.9);
+  box-shadow: var(--shadow);
+  color: #fff;
+  pointer-events: auto;
+  text-align: left;
+}
+
+.match-behavior-panel__title {
+  margin: 0 0 8px;
+  color: inherit;
+  font-size: 16px;
+}
+
+.match-behavior-panel__starters {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.match-behavior-panel__starters li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.match-behavior-panel__starters li span:last-child {
+  overflow: hidden;
+  opacity: 0.75;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.match-behavior-panel__starters small {
+  color: #c8e6c9;
+}
+
+.match-behavior-panel__form {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.match-behavior-panel__form select,
+.match-behavior-panel__form button,
+.match-behavior-panel__error button {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 5px;
+  font: inherit;
+}
+
+.match-behavior-panel__form select {
+  color: #151515;
+  background: #fff;
+}
+
+.match-behavior-panel__form button,
+.match-behavior-panel__error button {
+  margin-top: 4px;
+  border: 0;
+  background: #1976d2;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.match-behavior-panel__form button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.match-behavior-panel__error,
+.match-behavior-panel__success {
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.match-behavior-panel__error {
+  color: #ffcdd2;
+}
+
+.match-behavior-panel__success {
+  color: #c8e6c9;
+}
+
+.match-behavior-panel button:focus-visible,
+.match-behavior-panel select:focus-visible {
+  outline: 2px solid #ffd54f;
+  outline-offset: 2px;
+}
+
+@media (max-width: 600px) {
+  .match-behavior-panel {
+    top: 74px;
+    right: 8px;
+    width: min(280px, calc(100% - 16px));
+    max-height: calc(100% - 82px);
+    padding: 10px;
+  }
+}
