@@ -17,6 +17,7 @@ import JoinFriendly from '../pages/JoinFriendly';
 import Match from '../pages/Match';
 import Players from '../pages/Players';
 import CreatePlayerPage from '../pages/CreatePlayerPage';
+import Ranking from '../pages/Ranking';
 
 // CreateFriendly es un modal: acá lo usamos como página y "Cancelar" vuelve al listado.
 // Va como componente aparte porque useNavigate solo funciona dentro del <BrowserRouter>.
@@ -66,6 +67,9 @@ export default function AppRoutes() {
             {/* Jugadores */}
             <Route path="/players" element={<Players />} />
             <Route path="/players/new" element={<CreatePlayerPage />} />
+
+            {/* Ranking global */}
+            <Route path="/ranking" element={<Ranking />} />
           </Route>
         </Route>
 
