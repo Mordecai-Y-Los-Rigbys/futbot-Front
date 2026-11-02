@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import useMatchWebSocket from '../hooks/useMatchWebSocket';
 import Pitch2DCanvas from '../components/Pitch2DCanvas';
 import ScoreboardOverlay from '../components/ScoreboardOverlay';
+import MatchBehaviorPanel from '../components/MatchBehaviorPanel';
 import './Match.css';
 
 // (ROSTER y su TODO quedan igual)
@@ -29,6 +30,7 @@ export default function Match() {
           status={status}
           onExit={() => navigate('/', { replace: true })}
         />
+        <MatchBehaviorPanel matchId={id} canManage={status === 'open'} />
       </div>
     </main>
   );
