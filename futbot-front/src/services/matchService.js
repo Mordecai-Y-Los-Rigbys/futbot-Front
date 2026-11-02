@@ -1,5 +1,6 @@
 import api from './api';
-import { createMatchConnectionMock, createMatchSocketMock } from './matchMocks';
+import { createMatchConnectionMock, createMatchSocketMock, getNextSubstitutionsMock, getMatchMock } from './matchMocks';
+
 
 // Nunca se activa en los tests (MODE === 'test'): ahí se mockea este módulo.
 const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true' && import.meta.env.MODE !== 'test';
@@ -13,6 +14,33 @@ export async function createMatchConnection(matchId) {
   if (USE_MOCKS) return createMatchConnectionMock(matchId);
 
   const { data } = await api.post(`/matches/${encodeURIComponent(matchId)}/connections`);
+  return data;
+}
+
+/**
+ * Primera sustitución de cada equipo (GET /matches/{id}/substitutions/next).
+ * Solo la pueden pedir los dos jugadores del partido y solo con el partido en juego.
+ * Errores posibles: 401 (sin sesión), 403 (no juega), 404 (no existe), 409 (matchNotStarted).
+ * @returns {Promise<{ club1: Substitution|null, club2: Substitution|null }>}
+ *   donde Substitution = { starterName, substituteName } (sale / entra).
+ */
+export async function getNextSubstitutions(matchId, { signal } = {}) {
+  if (USE_MOCKS) return getNextSubstitutionsMock(matchId, { signal });
+
+  const { data } = await api.get(`/matches/${encodeURIComponent(matchId)}/substitutions/next`, { signal });
+  return data;
+}
+
+/**
+ * Partido completo (GET /matches/{id}): clubes con su usuario, estado y resultado.
+ * Solo lo piden los dos usuarios del partido. Orden de errores: 401 > 404 > 403.
+ * @returns {Promise<Match>} con club1 y club2 = UserClub { id, username, name, avatar? };
+ *   club2 es null en un amistoso sin rival.
+ */
+export async function getMatch(matchId, { signal } = {}) {
+  if (USE_MOCKS) return getMatchMock(matchId, { signal });
+
+  const { data } = await api.get(`/matches/${encodeURIComponent(matchId)}`, { signal });
   return data;
 }
 

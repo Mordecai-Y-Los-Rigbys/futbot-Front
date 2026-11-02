@@ -1,0 +1,54 @@
+.pause {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+}
+
+.pause__title {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.pause__remaining {
+  margin: 0;
+  color: #ffd54f;
+}
+
+.pause__subs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-top: 0.5rem;
+}
+
+.pause__side h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.9rem;
+  color: #b9bdb7;
+}
+
+.pause__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pause__player {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.pause__arrow--in {
+  color: #43a047;
+}
+
+.pause__arrow--out {
+  color: #e53935;
+}
