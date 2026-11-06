@@ -218,6 +218,150 @@
   outline-offset: 2px;
 }
 
+/* ---- Tanda de penales ---- */
+.match__status {
+  padding: 48px 0;
+  text-align: center;
+}
+
+.shootout {
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 8px 14px;
+  max-width: min(560px, 92%);
+  box-sizing: border-box;
+  background: rgba(10, 14, 12, 0.78);
+  border-radius: 10px;
+}
+
+.shootout__score {
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.shootout__duel {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 16px;
+  font-size: 14px;
+}
+
+.shootout__timer {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #ffd54f;
+}
+
+.shootout-banner {
+  animation: match-goal 3s ease-out forwards;
+}
+
+.shootout-banner__word {
+  display: block;
+  padding: 6px 24px;
+  font-size: clamp(32px, 7vw, 72px);
+  font-weight: 900;
+  color: #ffd54f;
+  background: rgba(10, 14, 12, 0.78);
+  border-radius: 10px;
+}
+
+.final__winner {
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffd54f;
+}
+
+.penalty-board {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.penalty-board__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.penalty-board__club {
+  flex: none;
+  width: 110px;
+  padding-left: 8px;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  border-left: 4px solid var(--team);
+}
+
+.penalty-board__slots {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.penalty-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  min-height: 38px;
+  padding: 2px 3px;
+  box-sizing: border-box;
+  font-size: 11px;
+  line-height: 1.2;
+  border-radius: 6px;
+  border: 2px solid transparent;
+}
+
+.penalty-slot--empty {
+  border: 2px dashed rgba(255, 255, 255, 0.4);
+}
+
+.penalty-slot--scored {
+  background: #2e7d32;
+}
+
+.penalty-slot--missed {
+  background: #c62828;
+}
+
+.penalty-slot__mark {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.penalty-slot__name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .final__score { font-size: 32px; }
+  .penalty-board__club { width: 72px; font-size: 12px; }
+  .penalty-board__slots { gap: 4px; }
+  .penalty-slot { width: 46px; font-size: 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shootout-banner { animation: none; }
+}
+
 @keyframes match-pop {
   from { transform: scale(1.6); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
