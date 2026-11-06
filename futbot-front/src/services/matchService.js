@@ -7,7 +7,7 @@ const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true' && import.meta.env.M
 /**
  * Pide el tokenWs para abrir el WebSocket del partido (POST /matches/{id}/connections).
  * Errores posibles: 401 (sin sesión), 403 (no participa), 404 (no existe), 409 (terminado/cancelado).
- * @returns {Promise<{ tokenWs: string }>}
+ * @returns {Promise<{ tokenWs: string }>}  
  */
 export async function createMatchConnection(matchId) {
   if (USE_MOCKS) return createMatchConnectionMock(matchId);
@@ -24,7 +24,7 @@ export async function createMatchConnection(matchId) {
  *   página está en https y ws si no. Sin esto quedaría "/api/ws/..." y
  *   new WebSocket() tira SyntaxError.
  */
-function resolveWsBase(rawBase) {
+export function resolveWsBase(rawBase) {
   const base = (rawBase || '').trim().replace(/\/+$/, '');
   if (/^wss?:\/\//i.test(base)) return base;
   if (/^https?:\/\//i.test(base)) return base.replace(/^http/i, 'ws');
