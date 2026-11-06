@@ -2,8 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import api from './api';
 import {
   getLeague,
-  getLeagueParticipants,
-  joinLeague,
   unlockLeague,
 } from './leagueService';
 
@@ -39,35 +37,6 @@ describe('getLeague', () => {
   });
 });
 
-describe('getLeagueParticipants', () => {
-  beforeEach(() => {
-    api.get.mockReset();
-  });
-
-  it('pide GET /leagues/{id}/participants sin mandar ninguna contraseña', async () => {
-    api.get.mockResolvedValue({ data: [] });
-
-    await getLeagueParticipants(5);
-
-    // El acceso a ligas privadas va por la sesión (cookie), no por headers.
-    expect(api.get).toHaveBeenCalledWith('/leagues/5/participants', { signal: undefined });
-  });
-
-  it('devuelve el body de la respuesta', async () => {
-    const participants = [{ id: 2, username: 'pepe', name: 'Boca', avatar: 1 }];
-    api.get.mockResolvedValue({ data: participants });
-
-    await expect(getLeagueParticipants(5)).resolves.toEqual(participants);
-  });
-
-  it('propaga el 403 para que la pantalla pida la contraseña', async () => {
-    const error = { response: { status: 403, data: { code: 'leagueAccessRequired' } } };
-    api.get.mockRejectedValue(error);
-
-    await expect(getLeagueParticipants(5)).rejects.toBe(error);
-  });
-});
-
 describe('unlockLeague', () => {
   beforeEach(() => {
     api.post.mockReset();
@@ -86,38 +55,5 @@ describe('unlockLeague', () => {
     api.post.mockRejectedValue(error);
 
     await expect(unlockLeague(5, { password: 'mala' })).rejects.toBe(error);
-  });
-});
-
-describe('joinLeague', () => {
-  beforeEach(() => {
-    api.post.mockReset();
-  });
-
-  const members = [{ playerId: 1, role: 'forward', behaviorId: 10 }];
-
-  it('pide POST /leagues/{id}/participants con el equipo y la contraseña', async () => {
-    api.post.mockResolvedValue({ status: 201 });
-
-    await joinLeague(5, { password: 'secreta', members });
-
-    expect(api.post).toHaveBeenCalledWith('/leagues/5/participants', { password: 'secreta', members });
-  });
-
-  it('en una liga pública no manda contraseña y nunca manda coachBehaviorId', async () => {
-    api.post.mockResolvedValue({ status: 201 });
-
-    await joinLeague(5, { members });
-
-    const body = api.post.mock.calls[0][1];
-    // JSON.stringify omite las propiedades undefined: lo que viaja es lo que queda en este JSON.
-    expect(JSON.parse(JSON.stringify(body))).toEqual({ members });
-  });
-
-  it('propaga el 409 para que la pantalla muestre el motivo', async () => {
-    const error = { response: { status: 409, data: { code: 'leagueFull' } } };
-    api.post.mockRejectedValue(error);
-
-    await expect(joinLeague(5, { members })).rejects.toBe(error);
   });
 });

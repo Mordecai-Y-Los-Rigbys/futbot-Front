@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import LeagueWaitingRoom from './LeagueWaitingRoom';
 import useLeagueSocket from '../hooks/useLeagueSocket';
-import {
+import {  unlockLeague,
 } from '../services/leagueService';
 
 // Servicios y hook falsos: no hay red ni socket de verdad. El hook tiene sus propios tests;
@@ -28,7 +28,8 @@ const makeLeague = (overrides = {}) => ({
   createdAt: '2026-01-01T00:00:00.000Z',
   ...overrides,
 });
-
+// Forma del error que arma axios: la pantalla lee `err.response.status` y `err.response.data.code`.
+const httpError = (status, code) => ({ response: { status, data: { code } } });
 
 const retry = vi.fn();
 
@@ -215,4 +216,80 @@ describe('LeagueWaitingRoom', () => {
       expect(screen.getByText('Sin actualización en vivo')).toBeInTheDocument();
     });
   });
+  
+  describe('acceso a ligas privadas', () => {
+    const sinAcceso = () =>
+      useLeagueSocket.mockReturnValue({
+        message: null,
+        status: 'closed',
+        closeInfo: { code: 4403, reason: 'leagueAccessRequired' },
+        retry,
+      });
+
+    it('cierre 4403 leagueAccessRequired: muestra el nombre de la liga y el formulario, no los participantes', () => {
+      sinAcceso();
+
+      renderRoom(makeLeague({ private: true }));
+
+      expect(screen.getByRole('heading', { name: 'Liga del barrio' })).toBeInTheDocument();
+      expect(screen.getByLabelText(/contraseña de la liga/i)).toBeInTheDocument();
+      expect(seccionParticipantes()).not.toBeInTheDocument();
+      expect(screen.queryByText('Sin actualización en vivo')).not.toBeInTheDocument();
+    });
+
+    it('con la contraseña correcta desbloquea la liga y vuelve a conectar el canal', async () => {
+      sinAcceso();
+      unlockLeague.mockResolvedValue(undefined);
+
+      renderRoom(makeLeague({ private: true }));
+      await userEvent.type(screen.getByLabelText(/contraseña de la liga/i), 'secreta');
+      await userEvent.click(screen.getByRole('button', { name: 'Entrar' }));
+
+      await vi.waitFor(() => expect(retry).toHaveBeenCalledTimes(1));
+      expect(unlockLeague).toHaveBeenCalledWith(5, { password: 'secreta' });
+    });
+
+    it('con una contraseña incorrecta sigue en el formulario y no reconecta', async () => {
+      sinAcceso();
+      unlockLeague.mockRejectedValue(httpError(403, 'invalidLeaguePassword'));
+
+      renderRoom(makeLeague({ private: true }));
+      await userEvent.type(screen.getByLabelText(/contraseña de la liga/i), 'mala');
+      await userEvent.click(screen.getByRole('button', { name: 'Entrar' }));
+
+      expect(await screen.findByText('Contraseña incorrecta')).toBeInTheDocument();
+      expect(retry).not.toHaveBeenCalled();
+    });
+
+    it('"Volver" lleva al listado de ligas', async () => {
+      sinAcceso();
+
+      renderRoom(makeLeague({ private: true }));
+      await userEvent.click(screen.getByRole('button', { name: 'Volver' }));
+
+      expect(await screen.findByText('Listado de ligas')).toBeInTheDocument();
+    });
+
+    it('un cierre 4403 con otro motivo no muestra el formulario', () => {
+      useLeagueSocket.mockReturnValue({
+        message: null, status: 'closed', closeInfo: { code: 4403, reason: 'originNotAllowed' }, retry,
+      });
+
+      renderRoom(makeLeague({ private: true }));
+
+      expect(screen.queryByLabelText(/contraseña de la liga/i)).not.toBeInTheDocument();
+      expect(screen.getByText('Sin actualización en vivo')).toBeInTheDocument();
+    });
+
+    it('con acceso (creador, participante o ya desbloqueada) entra directo, sin formulario', () => {
+      canal([CREATOR]);
+
+      renderRoom(makeLeague({ private: true }));
+
+      expect(seccionParticipantes()).toBeInTheDocument();
+      expect(screen.queryByLabelText(/contraseña de la liga/i)).not.toBeInTheDocument();
+      expect(unlockLeague).not.toHaveBeenCalled();
+    });
+  });
+
 });
