@@ -8,16 +8,22 @@ const MOCK_DELAY_MS = 400;
 
 const NAMES = ['FC Santi', 'Boca Juniors', 'River Plate', 'Racing Club', 'Independiente', 'San Lorenzo', 'Estudiantes', 'Vélez', 'Talleres', 'Belgrano'];
 
-const RANKING = NAMES.map((name, i) => ({
-  position: i + 1,
-  name,
+const TOTAL_CLUBS = 120;
+
+// Los primeros 10 son los de siempre; el resto se genera como "Club N".
+const clubName = (i) => NAMES[i] ?? `Club ${i + 1}`;
+
+const RANKING = Array.from({ length: TOTAL_CLUBS }, (_, i) => ({
+  // Empates de ejemplo: cada 4 clubes comparten puesto, como haría el back (1, 1, 1, 1, 5, 5, ...).
+  position: Math.floor(i / 4) * 4 + 1,
+  name: clubName(i),
   avatar: (i % 4) + 1,
-  score: 30 - i * 2,
-  goalDifference: 12 - i * 2,
-  goals: 25 - i,
-  wonRegular: 9 - Math.floor(i / 2),
+  score: Math.max(0, 120 - i),
+  goalDifference: 40 - i,
+  goals: Math.max(0, 80 - i),
+  wonRegular: Math.max(0, 30 - Math.floor(i / 4)),
   wonPenalties: i % 3,
-  lost: 1 + Math.floor(i / 2),
+  lost: 1 + Math.floor(i / 3),
 }));
 
 const httpError = (status) =>
