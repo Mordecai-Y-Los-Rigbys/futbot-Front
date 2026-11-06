@@ -2,11 +2,9 @@ import api from './api';
 import {
   createLeagueMock,
   getLeagueMock,
-  getLeagueParticipantsMock,
   getLeaguesMock,
-  joinLeagueMock,
-  unlockLeagueMock,
 } from './leagueMocks';
+
 
 // El backend responde siempre de a 50 elementos; el cliente no puede cambiarlo.
 export const PAGE_SIZE = 50;
@@ -117,4 +115,17 @@ export async function joinLeague(id, { password, members }) {
   if (USE_MOCKS) return joinLeagueMock(id, { password, members });
 
   await api.post(`/leagues/${encodeURIComponent(id)}/participants`, { password, members });
+}
+
+/**
+ * El usuario abandona una liga (DELETE /leagues/{id}/participants/me). Responde 204.
+ * Solo mientras la liga está en `preparation`.
+ * Errores posibles: 401, 404, 409 (code: notInPreparation | notParticipating | isCreator).
+ * @param {string|number} id
+ * @returns {Promise<void>}
+ */
+export async function leaveLeague(id) {
+  if (USE_MOCKS) return leaveLeagueMock(id);
+
+  await api.delete(`/leagues/${encodeURIComponent(id)}/participants/me`);
 }
