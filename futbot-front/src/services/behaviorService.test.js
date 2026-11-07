@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import api from './api';
-import { getBehaviorById, getBehaviors, createBehavior, updateBehavior } from './behaviorService';
+import { getBehaviorById, getBehaviors, createBehavior, updateBehavior, deleteBehavior } from './behaviorService';
 
-vi.mock('./api', () => ({ default: { get: vi.fn(), post: vi.fn(), put: vi.fn() } }));
+vi.mock('./api', () => ({ default: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn()  } }));
 
 describe('getBehaviors', () => {
   beforeEach(() => {
@@ -126,5 +126,34 @@ describe('createBehavior', () => {
     api.post.mockRejectedValue(error);
 
     await expect(createBehavior({ name: 'A', code: 'x', type: 'playerBehavior' })).rejects.toBe(error);
+  });
+});
+
+describe('deleteBehavior', () => {
+  beforeEach(() => {
+    api.delete.mockReset();
+  });
+
+  it('pide DELETE /behaviors/{id} y resuelve sin body', async () => {
+    api.delete.mockResolvedValue({ status: 204, data: '' });
+
+    await expect(deleteBehavior(7)).resolves.toBeUndefined();
+    expect(api.delete).toHaveBeenCalledWith('/behaviors/7', { signal: undefined });
+  });
+
+  it('codifica el id y pasa el signal', async () => {
+    api.delete.mockResolvedValue({});
+    const controller = new AbortController();
+
+    await deleteBehavior('a/b', { signal: controller.signal });
+
+    expect(api.delete).toHaveBeenCalledWith('/behaviors/a%2Fb', { signal: controller.signal });
+  });
+
+  it.each([403, 404, 409])('propaga el error %i para que lo maneje la pantalla', async (status) => {
+    const error = Object.assign(new Error(String(status)), { response: { status } });
+    api.delete.mockRejectedValue(error);
+
+    await expect(deleteBehavior(9)).rejects.toBe(error);
   });
 });
