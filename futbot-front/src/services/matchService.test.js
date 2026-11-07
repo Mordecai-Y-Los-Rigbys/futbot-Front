@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import api from './api';
-import { buildWsUrl } from './matchService';
+import { buildWsUrl, getMatchLineups } from './matchService';
 
-vi.mock('./api', () => ({ default: { defaults: { baseURL: '' } } }));
+vi.mock('./api', () => ({ default: { defaults: { baseURL: '' }, get: vi.fn() } }));
 
 const WS_PATH = '/ws/matches/7?token=abc';
 
@@ -43,5 +43,25 @@ describe('buildWsUrl', () => {
   it('codifica el id del partido y el token', () => {
     api.defaults.baseURL = 'http://localhost:8000';
     expect(buildWsUrl('a/b', 't o+k')).toBe('ws://localhost:8000/ws/matches/a%2Fb?token=t%20o%2Bk');
+  });
+});
+
+describe('getMatchLineups', () => {
+  beforeEach(() => api.get.mockReset());
+
+  it('pide GET /matches/{id}/lineups con el id codificado y el signal', async () => {
+    const body = { club1: [], club2: null };
+    api.get.mockResolvedValue({ data: body });
+    const controller = new AbortController();
+
+    await expect(getMatchLineups('a/b', { signal: controller.signal })).resolves.toEqual(body);
+
+    expect(api.get).toHaveBeenCalledWith('/matches/a%2Fb/lineups', { signal: controller.signal });
+  });
+
+  it('propaga el error si la request falla', async () => {
+    api.get.mockRejectedValue({ response: { status: 403 } });
+
+    await expect(getMatchLineups(7)).rejects.toMatchObject({ response: { status: 403 } });
   });
 });
