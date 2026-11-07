@@ -1,4 +1,6 @@
 import api from './api';
+import { getGlobalRankingMock } from './rankingMocks';
+import { USE_MOCKS } from '../config/mocks';
 
 /**
  * Ranking global de clubes (GET /ranking). Requiere sesión: la cookie viaja sola
@@ -13,6 +15,8 @@ import api from './api';
  *   completo: no se recalcula ni se reordena en el cliente.
  */
 export async function getGlobalRanking(name, page = 1, { signal } = {}) {
+  if (USE_MOCKS) return getGlobalRankingMock(name, page, { signal });
+
   const { data } = await api.get('/ranking', {
     // Con `undefined` axios omite el parámetro, así `?name=` no viaja vacío.
     params: { name: name || undefined, page },

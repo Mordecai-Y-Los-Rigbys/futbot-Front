@@ -1,12 +1,12 @@
 import api from './api';
-import { getBehaviorByIdMock, getBehaviorsMock } from './behaviorMocks';
+import { createBehaviorMock, getBehaviorByIdMock, getBehaviorsMock } from './behaviorMocks';
+import { USE_MOCKS } from '../config/mocks';
 
 // El backend responde siempre de a 50 elementos; el cliente no puede cambiarlo.
 export const PAGE_SIZE = 50;
 
 // Modo sin backend: poné VITE_USE_MOCKS=true en futbot-front/.env.local y reiniciá Vite.
 // Nunca se activa en los tests (MODE === 'test'), que mockean `api` por su cuenta.
-const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true' && import.meta.env.MODE !== 'test';
 
 /**
  * Lista los behaviors del usuario logueado (GET /behaviors/me).
@@ -38,5 +38,18 @@ export async function getBehaviorById(id, { signal } = {}) {
   if (USE_MOCKS) return getBehaviorByIdMock(id, { signal });
 
   const { data } = await api.get(`/behaviors/${encodeURIComponent(id)}`, { signal });
+  return data;
+}
+
+/**
+ * Crea un behavior (POST /behaviors).
+ * Errores: 400 (campos), 401 (sin sesión), 409 (duplicateName | codeTooLong | invalidCode con `codeError`).
+ * @param {{ name: string, code: string, type: 'playerBehavior'|'coachBehavior' }} behavior
+ * @returns {Promise<{ id: number, name: string, type: string, code: string }>}
+ */
+export async function createBehavior({ name, code, type }, { signal } = {}) {
+  if (USE_MOCKS) return createBehaviorMock({ name, code, type });
+
+  const { data } = await api.post('/behaviors', { name, code, type }, { signal });
   return data;
 }
