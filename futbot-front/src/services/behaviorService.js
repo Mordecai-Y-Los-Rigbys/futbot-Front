@@ -1,5 +1,5 @@
 import api from './api';
-import { getBehaviorByIdMock, getBehaviorsMock } from './behaviorMocks';
+import { createBehaviorMock, getBehaviorByIdMock, getBehaviorsMock } from './behaviorMocks';
 
 // El backend responde siempre de a 50 elementos; el cliente no puede cambiarlo.
 export const PAGE_SIZE = 50;
@@ -38,5 +38,18 @@ export async function getBehaviorById(id, { signal } = {}) {
   if (USE_MOCKS) return getBehaviorByIdMock(id, { signal });
 
   const { data } = await api.get(`/behaviors/${encodeURIComponent(id)}`, { signal });
+  return data;
+}
+
+/**
+ * Crea un behavior (POST /behaviors).
+ * Errores: 400 (campos), 401 (sin sesión), 409 (duplicateName | codeTooLong | invalidCode con `codeError`).
+ * @param {{ name: string, code: string, type: 'playerBehavior'|'coachBehavior' }} behavior
+ * @returns {Promise<{ id: number, name: string, type: string, code: string }>}
+ */
+export async function createBehavior({ name, code, type }, { signal } = {}) {
+  if (USE_MOCKS) return createBehaviorMock({ name, code, type });
+
+  const { data } = await api.post('/behaviors', { name, code, type }, { signal });
   return data;
 }
