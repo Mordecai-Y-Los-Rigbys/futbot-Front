@@ -24,8 +24,8 @@ export async function createMatchConnection(matchId) {
  * @returns {Promise<{ club1: Substitution|null, club2: Substitution|null }>}
  *   donde Substitution = { starterName, substituteName } (sale / entra).
  */
-export async function getNextSubstitutions(matchId, { signal } = {}) {
-  if (USE_MOCKS) return getNextSubstitutionsMock(matchId, { signal });
+export async function getSubstitutions(matchId, { signal } = {}) {
+  if (USE_MOCKS) return getSubstitutionsMock(matchId, { signal });
 
   const { data } = await api.get(`/matches/${encodeURIComponent(matchId)}/substitutions/next`, { signal });
   return data;
