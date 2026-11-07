@@ -71,3 +71,27 @@ export async function getMatchMock(matchId) {
     result: null,
   };
 }
+
+// Ids "trampa": 4031 -> 403, 4041 -> 404, 0 -> amistoso sin rival (club2 null).
+export async function getMatchLineupsMock(matchId) {
+  await wait(300);
+
+  if (matchId === '4031') throw httpError(403, { code: 'notAPlayerInMatch', message: 'No podés ver este partido.' });
+  if (matchId === '4041') throw httpError(404, { message: 'El partido no existe.' });
+
+  return {
+    club1: [
+      { playerId: 1, name: 'Lionel Messi', role: 'forward' },
+      { playerId: 2, name: 'Julián Álvarez', role: 'midfield' },
+      { playerId: 3, name: 'Rodrigo De Paul', role: 'defense' },
+    ],
+    club2:
+      matchId === '0'
+        ? null
+        : [
+            { playerId: 4, name: 'Lautaro Martínez', role: 'forward' },
+            { playerId: 5, name: 'Enzo Fernández', role: 'midfield' },
+            { playerId: 6, name: 'Cristian Romero', role: 'defense' },
+          ],
+  };
+}
