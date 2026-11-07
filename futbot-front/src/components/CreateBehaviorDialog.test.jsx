@@ -31,13 +31,12 @@ describe('CreateBehaviorDialog', () => {
   });
 
   describe('render', () => {
-    it('muestra los campos, el selector de tipo y el botón deshabilitado', () => {
+    it('muestra los campos y el botón deshabilitado', () => {
       renderDialog();
 
       expect(screen.getByRole('dialog', { name: 'Crear comportamiento' })).toBeInTheDocument();
       expect(screen.getByLabelText('Nombre')).toHaveValue('');
       expect(screen.getByLabelText('Código')).toHaveValue('');
-      expect(screen.getByLabelText('Tipo')).toHaveValue('playerBehavior');
       expect(confirm()).toBeDisabled();
     });
 
@@ -52,24 +51,26 @@ describe('CreateBehaviorDialog', () => {
     });
   });
 
-  describe('selección de tipo', () => {
-    it('permite elegir jugador o DT y envía el tipo elegido', async () => {
+  describe('tipo de comportamiento', () => {
+    it('no muestra ningún selector de tipo', () => {
+      renderDialog();
+
+      expect(screen.queryByLabelText('Tipo')).not.toBeInTheDocument();
+      expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    });
+
+    it('siempre envía playerBehavior', async () => {
       createBehavior.mockResolvedValue({ id: 1, name: 'Táctico' });
       renderDialog();
-      expect(screen.getAllByRole('option').map((o) => o.value)).toEqual([
-        'playerBehavior',
-        'coachBehavior',
-      ]);
 
       fill('Táctico');
-      fireEvent.change(screen.getByLabelText('Tipo'), { target: { value: 'coachBehavior' } });
       fireEvent.click(confirm());
       await flush();
 
       expect(createBehavior).toHaveBeenCalledWith({
         name: 'Táctico',
         code: 'move = 1',
-        type: 'coachBehavior',
+        type: 'playerBehavior',
       });
     });
   });
@@ -108,45 +109,44 @@ describe('CreateBehaviorDialog', () => {
       expect(confirm()).toBeDisabled();
       expect(screen.getByRole('alert')).toHaveTextContent('250 líneas');
     });
-
   });
 
   describe('resaltado del código con error', () => {
     it('marca la posición del error y muestra línea y columna', () => {
-        renderDialog();
-        fill('Atacante', 'x = 1\nimport os\ny = 2');
+      renderDialog();
+      fill('Atacante', 'x = 1\nimport os\ny = 2');
 
-        expect(screen.getByTestId('code-diagnostic')).toHaveTextContent('2:1');
-        expect(screen.getByRole('alert')).toHaveTextContent('Línea 2, columna 1');
+      expect(screen.getByTestId('code-diagnostic')).toHaveTextContent('2:1');
+      expect(screen.getByRole('alert')).toHaveTextContent('Línea 2, columna 1');
     });
 
     it('marca todos los errores a la vez', () => {
-        renderDialog();
-        fill('Atacante', 'import os\nclass A:\n  pass');
+      renderDialog();
+      fill('Atacante', 'import os\nclass A:\n  pass');
 
-        expect(screen.getAllByTestId('code-diagnostic')).toHaveLength(2);
-        expect(screen.getByRole('alert')).toHaveTextContent('Línea 2, columna 1');
+      expect(screen.getAllByTestId('code-diagnostic')).toHaveLength(2);
+      expect(screen.getByRole('alert')).toHaveTextContent('Línea 2, columna 1');
     });
 
     it('sin errores no hay marcas', () => {
-        renderDialog();
-        fill();
+      renderDialog();
+      fill();
 
-        expect(screen.queryByTestId('code-diagnostic')).not.toBeInTheDocument();
-        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('code-diagnostic')).not.toBeInTheDocument();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
 
     it('al corregir el código las marcas desaparecen y se habilita el botón', () => {
-        renderDialog();
-        fill('Atacante', 'for i in x:\n  pass');
-        expect(screen.getByTestId('code-diagnostic')).toBeInTheDocument();
+      renderDialog();
+      fill('Atacante', 'import os');
+      expect(screen.getByTestId('code-diagnostic')).toBeInTheDocument();
 
-        fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'move = 1' } });
+      fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'move = 1' } });
 
-        expect(screen.queryByTestId('code-diagnostic')).not.toBeInTheDocument();
-        expect(confirm()).toBeEnabled();
+      expect(screen.queryByTestId('code-diagnostic')).not.toBeInTheDocument();
+      expect(confirm()).toBeEnabled();
     });
-    });
+  });
 
   describe('201', () => {
     it('envía POST con el nombre sin espacios sobrantes y avisa con el behavior creado', async () => {
@@ -188,8 +188,7 @@ describe('CreateBehaviorDialog', () => {
     ])('409 %s muestra el motivo sin perder lo escrito', async (code, text) => {
       createBehavior.mockRejectedValue(httpError(409, { code, message: 'x', codeError: null }));
       renderDialog();
-      fill('Atacante', 'move = 1', 'coachBehavior');
-      fireEvent.change(screen.getByLabelText('Tipo'), { target: { value: 'coachBehavior' } });
+      fill('Atacante', 'move = 1');
 
       fireEvent.click(confirm());
       await flush();
@@ -197,45 +196,49 @@ describe('CreateBehaviorDialog', () => {
       expect(screen.getByRole('alert')).toHaveTextContent(text);
       expect(screen.getByLabelText('Nombre')).toHaveValue('Atacante');
       expect(screen.getByLabelText('Código')).toHaveValue('move = 1');
-      expect(screen.getByLabelText('Tipo')).toHaveValue('coachBehavior');
       expect(confirm()).toBeEnabled();
       expect(onCreated).not.toHaveBeenCalled();
     });
 
     it('409 invalidCode marca la ubicación que informa el servidor', async () => {
-    createBehavior.mockRejectedValue(
+      createBehavior.mockRejectedValue(
         httpError(409, {
-        code: 'invalidCode',
-        message: 'x',
-        codeError: { rule: 'primitiveAssignmentNotAllowed', line: 2, column: 1, message: 'No se puede asignar a una primitiva.' },
+          code: 'invalidCode',
+          message: 'x',
+          codeError: {
+            rule: 'primitiveAssignmentNotAllowed',
+            line: 2,
+            column: 1,
+            message: 'No se puede asignar a una primitiva.',
+          },
         }),
-    );
-    renderDialog();
-    fill('Atacante', 'a = 1\nmove = 1');
+      );
+      renderDialog();
+      fill('Atacante', 'a = 1\nmove = 1');
 
-    fireEvent.click(confirm());
-    await flush();
+      fireEvent.click(confirm());
+      await flush();
 
-    expect(screen.getByTestId('code-diagnostic')).toHaveTextContent('2:1');
-    expect(screen.getByText(/Línea 2, columna 1: No se puede asignar/)).toBeInTheDocument();
+      expect(screen.getByTestId('code-diagnostic')).toHaveTextContent('2:1');
+      expect(screen.getByText(/Línea 2, columna 1: No se puede asignar/)).toBeInTheDocument();
     });
 
     it('la marca del servidor se va cuando se edita el código', async () => {
-    createBehavior.mockRejectedValue(
+      createBehavior.mockRejectedValue(
         httpError(409, {
-        code: 'invalidCode',
-        message: 'x',
-        codeError: { rule: 'primitiveAssignmentNotAllowed', line: 1, column: 1, message: 'm' },
+          code: 'invalidCode',
+          message: 'x',
+          codeError: { rule: 'primitiveAssignmentNotAllowed', line: 1, column: 1, message: 'm' },
         }),
-    );
-    renderDialog();
-    fill('Atacante', 'move = 1');
-    fireEvent.click(confirm());
-    await flush();
+      );
+      renderDialog();
+      fill('Atacante', 'move = 1');
+      fireEvent.click(confirm());
+      await flush();
 
-    fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'move = 2' } });
+      fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'move = 2' } });
 
-    expect(screen.queryByTestId('code-diagnostic')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('code-diagnostic')).not.toBeInTheDocument();
     });
 
     it.each([
