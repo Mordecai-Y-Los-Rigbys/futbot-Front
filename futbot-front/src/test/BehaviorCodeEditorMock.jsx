@@ -1,3 +1,5 @@
+// Textarea que imita a BehaviorCodeEditor: así los tests del formulario siguen
+// usando fireEvent.change sin depender de CodeMirror.
 export default function BehaviorCodeEditorMock({ value, onChange, diagnostics = [], disabled }) {
   return (
     <>
