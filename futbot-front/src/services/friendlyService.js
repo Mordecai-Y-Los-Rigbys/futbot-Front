@@ -3,8 +3,8 @@ import { joinFriendlyMatchMock } from './friendlyMocks';
 import { getPlayersMock } from './friendlyMocks';
 import { createFriendlyMatchMock } from './friendlyMocks';
 import { getAvailableFriendliesMock } from './friendlyMocks';
+import { USE_MOCKS } from '../config/mocks';
 
-const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true';
 
 export const getPlayers = async () => {
   if (USE_MOCKS) {

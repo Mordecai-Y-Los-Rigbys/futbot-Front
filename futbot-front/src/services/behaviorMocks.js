@@ -27,7 +27,7 @@ const buildCode = (name) =>
   ].join('\n');
 
 // 120 behaviors => 3 páginas de 50, así se prueba la paginación.
-const BEHAVIORS = Array.from({ length: 3 }, (_, i) => {
+const BEHAVIORS = Array.from({ length: 120 }, (_, i) => {
   const name = `${ROLES[i % ROLES.length]} ${STYLES[Math.floor(i / ROLES.length) % STYLES.length]} #${i + 1}`;
   return { id: i + 1, name, code: buildCode(name) };
 });

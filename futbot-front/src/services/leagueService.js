@@ -1,12 +1,12 @@
 import api from './api';
 import { createLeagueMock, getLeaguesMock } from './leagueMocks';
+import { USE_MOCKS } from '../config/mocks';
 
 // El backend responde siempre de a 50 elementos; el cliente no puede cambiarlo.
 export const PAGE_SIZE = 50;
 
 // Modo sin backend: poné VITE_USE_MOCKS=true en futbot-front/.env.local y reiniciá Vite.
 // Nunca se activa en los tests (MODE === 'test'), que mockean `api` por su cuenta.
-const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true' && import.meta.env.MODE !== 'test';
 
 /**
  * Lista las ligas (GET /leagues). Requiere sesión: la cookie viaja sola
