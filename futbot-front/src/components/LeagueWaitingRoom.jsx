@@ -1,7 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import LeaguePasswordForm from './LeaguePasswordForm';
+import Modal from './Modal';
+import { useAuth } from '../context/AuthContext.jsx';
 import useLeagueSocket from '../hooks/useLeagueSocket';
+import { leaveLeague } from '../services/leagueService';
 import './LeagueWaitingRoom.css';
 
 // Mismo mapa que Leagues.jsx: si hace falta en una tercera pantalla, conviene moverlo a un módulo común.
@@ -14,6 +17,16 @@ const STATUS_LABELS = {
 
 // Cierres del canal que no son un error: la pantalla se va o se vuelve a pedir la liga.
 const LEAVING_CLOSE_CODES = [1000, 4401, 4404, 4409];
+const SESSION_MESSAGE = 'Tu sesión venció. Iniciá sesión nuevamente.';
+
+const LEAVE_CONFLICT_MESSAGES = {
+  notInPreparation: 'La liga ya no está en preparación: no se puede abandonar.',
+  notParticipating: 'Ya no participás en esta liga.',
+  isCreator: 'El creador no puede abandonar la liga.',
+};
+
+// Cuánto se muestra el aviso de éxito antes de volver al listado (mismo criterio que Register).
+const REDIRECT_DELAY_MS = 1500;
 
 // Sala de espera de una liga en preparación. La lista de participantes llega por el WebSocket
 // `/ws/leagues/{id}/participants`: cada mensaje trae la lista completa y reemplaza a la anterior.
@@ -23,7 +36,13 @@ const LEAVING_CLOSE_CODES = [1000, 4401, 4404, 4409];
 // (la inició el creador, la cancelaron, etc.) para que vuelva a pedirla y elija la vista.
 export default function LeagueWaitingRoom({ league, onLeagueChanged }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { message, status, closeInfo, retry } = useLeagueSocket(league.id, 'participants');
+
+  const [isLeaveOpen, setIsLeaveOpen] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
+  const [leaveError, setLeaveError] = useState(null);
+  const [hasLeft, setHasLeft] = useState(false);
 
   // Cierres definitivos del canal que sacan al usuario de esta vista.
   useEffect(() => {
@@ -32,6 +51,38 @@ export default function LeagueWaitingRoom({ league, onLeagueChanged }) {
     else if (closeInfo.code === 4404) navigate('/leagues', { replace: true });
     else if (closeInfo.code === 1000 || closeInfo.code === 4409) onLeagueChanged();
   }, [closeInfo, navigate, onLeagueChanged]);
+
+  // Después de abandonar con éxito: se muestra el aviso un momento y se vuelve al listado.
+  useEffect(() => {
+    if (!hasLeft) return undefined;
+    const timer = setTimeout(() => navigate('/leagues'), REDIRECT_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [hasLeft, navigate]);
+
+  const handleLeave = async () => {
+    setIsLeaving(true);
+    setLeaveError(null);
+    try {
+      await leaveLeague(league.id);
+      setIsLeaveOpen(false);
+      setHasLeft(true);
+    } catch (err) {
+      setIsLeaveOpen(false);
+      const { status: httpStatus, data } = err.response ?? {};
+      if (httpStatus === 409) {
+        // La liga cambió: el motivo se muestra y el canal avisa del cambio de estado si corresponde.
+        setLeaveError(LEAVE_CONFLICT_MESSAGES[data?.code] ?? 'No se pudo abandonar la liga.');
+      } else if (httpStatus === 401) {
+        setLeaveError(SESSION_MESSAGE);
+      } else if (httpStatus === 404) {
+        setLeaveError('La liga ya no existe.');
+      } else {
+        setLeaveError('No pudimos abandonar la liga. Intentá nuevamente.');
+      }
+    } finally {
+      setIsLeaving(false);
+    }
+  };
 
   // 4403 leagueAccessRequired: liga privada sin acceso. Otros 4403 (por ejemplo originNotAllowed)
   // no son este caso. Se muestra el formulario en lugar de la sala.
@@ -58,7 +109,11 @@ export default function LeagueWaitingRoom({ league, onLeagueChanged }) {
   // El cupo restante sale de la lista del canal, así cambia junto con ella.
   const spotsLeft = Math.max(0, league.maxParticipants - participants.length);
   const lostLive = closeInfo !== null && !isLeavingView;
-
+  
+  const isCreator = league.creator.id === user.id;
+  const isParticipant = participants.some((participant) => participant.id === user.id);
+  const canLeave = isParticipant && !isCreator && !hasLeft;
+  
   return (
     <main className="league-lobby">
       <header>
@@ -82,6 +137,10 @@ export default function LeagueWaitingRoom({ league, onLeagueChanged }) {
         </div>
       )}
 
+      {hasLeft && <p role="status">Abandonaste la liga. Te llevamos al listado…</p>}
+      {leaveError && <p role="alert">{leaveError}</p>}
+
+
       <section aria-label="Participantes">
         <h2>Participantes</h2>
         <ul className="league-lobby__participants">
@@ -93,10 +152,47 @@ export default function LeagueWaitingRoom({ league, onLeagueChanged }) {
           ))}
         </ul>
       </section>
+      
+      {isCreator && <p>Sos el creador de la liga: no podés abandonarla.</p>}
 
       <div className="league-lobby__actions">
+                {canLeave && (
+          <button
+            type="button"
+            className="league-lobby__danger"
+            onClick={() => setIsLeaveOpen(true)}
+          >
+            Abandonar liga
+          </button>
+        )}
+
         <Link to="/leagues">Volver a ligas</Link>
       </div>
+      
+      {isLeaveOpen && (
+        <Modal title="Abandonar liga" onClose={() => setIsLeaveOpen(false)} isBusy={isLeaving}>
+          <p>¿Estás seguro que deseas abandonar esta liga?</p>
+          <div className="modal__actions">
+            <button type="button" onClick={() => setIsLeaveOpen(false)} disabled={isLeaving}>
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="league-lobby__danger"
+              onClick={handleLeave}
+              disabled={isLeaving}
+            >
+              {isLeaving ? (
+                <>
+                  <span className="modal__spinner" aria-hidden="true" />
+                  Abandonando…
+                </>
+              ) : 'Sí, abandonar'}
+            </button>
+          </div>
+        </Modal>
+      )}
+
     </main>
   );
 }
