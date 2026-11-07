@@ -42,3 +42,44 @@
     animation: none;
   }
 }
+
+/* Botón "Eliminar": a la izquierda del pie, con el motivo como tooltip cuando está bloqueado. */
+.behavior-detail__delete-wrap {
+  position: relative;
+  margin-right: auto;
+}
+
+.modal__overlay .behavior-detail__delete {
+  color: #de1918;
+  border-color: #de1918;
+}
+
+.modal__overlay .behavior-detail__delete[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.behavior-detail__tooltip {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  z-index: 1;
+  width: max-content;
+  max-width: 260px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  box-shadow: var(--shadow);
+  color: var(--text-h);
+  font-size: 14px;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.behavior-detail__delete-wrap:hover .behavior-detail__tooltip,
+.behavior-detail__delete-wrap:focus-within .behavior-detail__tooltip {
+  opacity: 1;
+  visibility: visible;
+}
