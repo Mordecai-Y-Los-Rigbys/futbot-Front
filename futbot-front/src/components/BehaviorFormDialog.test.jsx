@@ -1,9 +1,9 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import CreateBehaviorDialog from './CreateBehaviorDialog';
-import { createBehavior } from '../services/behaviorService';
+import BehaviorFormDialog from './BehaviorFormDialog';
+import { createBehavior, updateBehavior } from '../services/behaviorService';
 
-vi.mock('../services/behaviorService', () => ({ createBehavior: vi.fn() }));
+vi.mock('../services/behaviorService', () => ({ createBehavior: vi.fn(), updateBehavior: vi.fn() }));
 vi.mock('./BehaviorCodeEditor', () => import('../test/BehaviorCodeEditorMock'));
 
 const httpError = (status, data = {}) =>
@@ -12,9 +12,9 @@ const httpError = (status, data = {}) =>
 const flush = () => act(async () => {});
 
 const onClose = vi.fn();
-const onCreated = vi.fn();
-
-const renderDialog = () => render(<CreateBehaviorDialog onClose={onClose} onCreated={onCreated} />);
+const onSaved = vi.fn();
+const renderDialog = (props = {}) =>
+  render(<BehaviorFormDialog onClose={onClose} onSaved={onSaved} {...props} />);
 
 const fill = (name = 'Atacante', code = 'move = 1') => {
   fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: name } });
@@ -26,8 +26,9 @@ const confirm = () => screen.getByRole('button', { name: 'Confirmar' });
 describe('CreateBehaviorDialog', () => {
   beforeEach(() => {
     createBehavior.mockReset();
+    updateBehavior.mockReset();
     onClose.mockReset();
-    onCreated.mockReset();
+    onSaved.mockReset();
   });
 
   describe('render', () => {
@@ -163,7 +164,7 @@ describe('CreateBehaviorDialog', () => {
         code: 'move = 1',
         type: 'playerBehavior',
       });
-      expect(onCreated).toHaveBeenCalledWith(created);
+      expect(onSaved).toHaveBeenCalledWith(created);
     });
 
     it('mientras envía deshabilita todo y evita envíos dobles', async () => {
@@ -197,7 +198,7 @@ describe('CreateBehaviorDialog', () => {
       expect(screen.getByLabelText('Nombre')).toHaveValue('Atacante');
       expect(screen.getByLabelText('Código')).toHaveValue('move = 1');
       expect(confirm()).toBeEnabled();
-      expect(onCreated).not.toHaveBeenCalled();
+      expect(onSaved).not.toHaveBeenCalled();
     });
 
     it('409 invalidCode marca la ubicación que informa el servidor', async () => {
@@ -267,6 +268,153 @@ describe('CreateBehaviorDialog', () => {
       await flush();
 
       expect(screen.getByRole('alert')).toHaveTextContent('conexión');
+    });
+  });
+
+  describe('edición', () => {
+    const current = { id: 7, name: 'Atacante', code: 'go_to(1, 2)' };
+    const renderEdit = () => renderDialog({ behavior: current });
+
+    it('abre con los valores actuales cargados y sin selector de tipo', () => {
+      renderEdit();
+
+      expect(screen.getByRole('dialog', { name: 'Editar comportamiento' })).toBeInTheDocument();
+      expect(screen.getByLabelText('Nombre')).toHaveValue('Atacante');
+      expect(screen.getByLabelText('Código')).toHaveValue('go_to(1, 2)');
+      expect(screen.queryByLabelText('Tipo')).not.toBeInTheDocument();
+      expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+      expect(confirm()).toBeEnabled();
+    });
+
+    it('envía PUT con id, nombre sin espacios y código, sin tipo, y avisa con el resultado', async () => {
+      updateBehavior.mockResolvedValue({ id: 7, name: 'Defensor', code: 'go_to(3, 4)' });
+      renderEdit();
+
+      fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: '  Defensor  ' } });
+      fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'go_to(3, 4)' } });
+      fireEvent.click(confirm());
+      await flush();
+
+      expect(updateBehavior).toHaveBeenCalledWith(7, { name: 'Defensor', code: 'go_to(3, 4)' });
+      expect(createBehavior).not.toHaveBeenCalled();
+      expect(onSaved).toHaveBeenCalledWith({ id: 7, name: 'Defensor', code: 'go_to(3, 4)' });
+    });
+
+    it('si el PUT no devuelve body, conserva los valores enviados', async () => {
+      updateBehavior.mockResolvedValue(undefined);
+      renderEdit();
+
+      fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Nuevo' } });
+      fireEvent.click(confirm());
+      await flush();
+
+      expect(onSaved).toHaveBeenCalledWith({ id: 7, name: 'Nuevo', code: 'go_to(1, 2)' });
+    });
+
+    it('mientras guarda deshabilita todo y evita envíos dobles', async () => {
+      updateBehavior.mockReturnValue(new Promise(() => {}));
+      renderEdit();
+
+      fireEvent.click(confirm());
+
+      expect(screen.getByRole('button', { name: 'Guardando…' })).toBeDisabled();
+      expect(screen.getByLabelText('Nombre')).toBeDisabled();
+      fireEvent.click(screen.getByRole('button', { name: 'Guardando…' }));
+      expect(updateBehavior).toHaveBeenCalledTimes(1);
+    });
+
+    it('aplica las mismas validaciones que al crear', () => {
+      renderEdit();
+
+      fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'import os' } });
+      expect(confirm()).toBeDisabled();
+      expect(screen.getByRole('alert')).toHaveTextContent('Línea 1, columna 1');
+
+      fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'x = 1\n'.repeat(251) } });
+      expect(screen.getByRole('alert')).toHaveTextContent('250 líneas');
+
+      fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: '   ' } });
+      fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'go_to(1, 2)' } });
+      expect(confirm()).toBeDisabled();
+    });
+
+    it.each([
+      ['duplicateName', 'Ya tenés un comportamiento con ese nombre'],
+      ['codeTooLong', 'demasiado largo'],
+      ['invalidCode', 'no respeta la API'],
+    ])('409 %s muestra el motivo sin perder lo escrito', async (code, text) => {
+      updateBehavior.mockRejectedValue(httpError(409, { code, message: 'x', codeError: null }));
+      renderEdit();
+      fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Otro' } });
+
+      fireEvent.click(confirm());
+      await flush();
+
+      expect(screen.getByRole('alert')).toHaveTextContent(text);
+      expect(screen.getByLabelText('Nombre')).toHaveValue('Otro');
+      expect(screen.getByLabelText('Código')).toHaveValue('go_to(1, 2)');
+      expect(confirm()).toBeEnabled();
+      expect(onSaved).not.toHaveBeenCalled();
+    });
+
+    it('409 invalidCode marca la ubicación que informa el servidor y se va al editar', async () => {
+      updateBehavior.mockRejectedValue(
+        httpError(409, {
+          code: 'invalidCode',
+          message: 'x',
+          codeError: { rule: 'primitiveAssignmentNotAllowed', line: 1, column: 1, message: 'No se puede asignar.' },
+        }),
+      );
+      renderEdit();
+
+      fireEvent.click(confirm());
+      await flush();
+
+      expect(screen.getByTestId('code-diagnostic')).toHaveTextContent('1:1');
+      expect(screen.getByText(/Línea 1, columna 1: No se puede asignar/)).toBeInTheDocument();
+
+      fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'go_to(5, 6)' } });
+      expect(screen.queryByTestId('code-diagnostic')).not.toBeInTheDocument();
+    });
+
+    it.each([
+      [400, { message: 'Revisá los campos marcados.' }, 'Revisá los campos marcados.'],
+      [401, {}, 'Tu sesión venció'],
+      [403, {}, 'No tenés permiso'],
+      [404, { code: 'deletedConcurrently' }, 'eliminado mientras lo editabas'],
+      [500, {}, 'No se pudo guardar el comportamiento'],
+    ])('error HTTP %i muestra un mensaje y conserva el formulario', async (status, data, text) => {
+      updateBehavior.mockRejectedValue(httpError(status, data));
+      renderEdit();
+
+      fireEvent.click(confirm());
+      await flush();
+
+      expect(screen.getByRole('alert')).toHaveTextContent(text);
+      expect(screen.getByLabelText('Nombre')).toHaveValue('Atacante');
+      expect(confirm()).toBeEnabled();
+    });
+
+    it('un error de red muestra el mensaje de conexión', async () => {
+      updateBehavior.mockRejectedValue(new Error('Network Error'));
+      renderEdit();
+
+      fireEvent.click(confirm());
+      await flush();
+
+      expect(screen.getByRole('alert')).toHaveTextContent('conexión');
+    });
+
+    it('valida el código contra el tipo del behavior, sin mostrarlo', () => {
+      renderDialog({ behavior: { id: 9, name: 'DT', type: 'coachBehavior', code: 'x = distance(0, 0, 1, 1)' } });
+
+      expect(confirm()).toBeEnabled();
+      expect(screen.queryByLabelText('Tipo')).not.toBeInTheDocument();
+
+      fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'kick()' } });
+
+      expect(confirm()).toBeDisabled();
+      expect(screen.getByRole('alert')).toHaveTextContent('Línea 1, columna 1');
     });
   });
 });
