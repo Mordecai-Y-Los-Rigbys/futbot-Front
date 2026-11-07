@@ -47,7 +47,9 @@ describe('buildWsUrl', () => {
 });
 
 describe('getMatchLineups', () => {
-  beforeEach(() => api.get.mockReset());
+  beforeEach(() => {
+    api.get.mockReset();
+  })
 
   it('pide GET /matches/{id}/lineups con el id codificado y el signal', async () => {
     const body = { club1: [], club2: null };
@@ -60,8 +62,9 @@ describe('getMatchLineups', () => {
   });
 
   it('propaga el error si la request falla', async () => {
-    api.get.mockRejectedValue({ response: { status: 403 } });
+    const error = Object.assign(new Error('HTTP 403'), { response: { status: 403 } });
+    api.get.mockRejectedValue(error);
 
-    await expect(getMatchLineups(7)).rejects.toMatchObject({ response: { status: 403 } });
+    await expect(getMatchLineups(7)).rejects.toBe(error);
   });
 });

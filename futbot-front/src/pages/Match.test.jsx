@@ -15,6 +15,8 @@ vi.mock('../components/Pitch2DCanvas', () => ({
   default: ({ roster }) => <output data-testid="pitch">{JSON.stringify(roster?.players ?? {})}</output>,
   TEAM_COLORS: { 1: '#d32f2f', 2: '#1976d2' },
 }));
+// El panel de pausa usa useAuth y pide las sustituciones: acá no se prueba.
+vi.mock('../components/PausePanel', () => ({ default: () => <div>pausa</div> }));
 
 const club1 = { id: 10, name: 'La Scaloneta FC', username: 'scaloni' };
 const club2 = { id: 11, name: 'Manchester City', username: 'guardiola' };
@@ -27,14 +29,14 @@ const LINEUPS = {
   club2: null,
 };
 
-const ui = (
+const ui = () => (
   <MemoryRouter initialEntries={['/matches/5']}>
     <Routes>
       <Route path="/matches/:id" element={<Match />} />
     </Routes>
   </MemoryRouter>
 );
-const renderMatch = () => render(ui);
+const renderMatch = () => render(ui());
 
 const mockWs = (meta = {}) =>
   useMatchWebSocket.mockReturnValue({
@@ -149,12 +151,12 @@ describe('Match', () => {
       await waitFor(() => expect(getMatchLineups).toHaveBeenCalledTimes(1));
 
       mockWs({ phase: 'countdown' });
-      rerender(ui);
+      rerender(ui());
       await waitFor(() => expect(getMatchLineups).toHaveBeenCalledTimes(2));
 
       mockWs({ phase: 'playing' });
-      rerender(ui);
-      rerender(ui);
+      rerender(ui());
+      rerender(ui());
       expect(getMatchLineups).toHaveBeenCalledTimes(2);
     });
 
@@ -164,11 +166,11 @@ describe('Match', () => {
       await waitFor(() => expect(getMatchLineups).toHaveBeenCalledTimes(1));
 
       mockWs({ phase: 'paused' });
-      rerender(ui);
+      rerender(ui());
       expect(getMatchLineups).toHaveBeenCalledTimes(1);
 
       mockWs({ phase: 'countdown' });
-      rerender(ui);
+      rerender(ui());
       await waitFor(() => expect(getMatchLineups).toHaveBeenCalledTimes(2));
     });
 
