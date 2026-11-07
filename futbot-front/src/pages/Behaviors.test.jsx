@@ -1,13 +1,15 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Behaviors from './Behaviors';
-import { getBehaviors } from '../services/behaviorService';
+import { createBehavior, getBehaviors } from '../services/behaviorService';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 vi.mock('../services/behaviorService', () => ({
   getBehaviors: vi.fn(),
+  createBehavior: vi.fn(),
   PAGE_SIZE: 50,
 }));
+vi.mock('../components/BehaviorCodeEditor', () => import('../test/BehaviorCodeEditorMock'));
 
 const makeItems = (n) =>
   Array.from({ length: n }, (_, i) => ({ id: i + 1, name: `Behavior ${i + 1}` }));
@@ -23,14 +25,13 @@ const flush = (ms = 0) =>
   });
 
 const renderPage = async () => {
-    render(
-        <MemoryRouter>
-            <Behaviors />
-        </MemoryRouter>,
-    );
-    await flush();
+  render(
+    <MemoryRouter>
+      <Behaviors />
+    </MemoryRouter>,
+  );
+  await flush();
 };
-
 
 const searchInput = () => screen.getByLabelText('Buscar por nombre');
 const button = (name) => screen.getByRole('button', { name });
@@ -39,6 +40,7 @@ describe('Behaviors', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     getBehaviors.mockReset();
+    createBehavior.mockReset();
     getBehaviors.mockResolvedValue(response(makeItems(3)));
   });
 
@@ -246,7 +248,7 @@ describe('Behaviors', () => {
     });
   });
 
-    describe('enlaces al detalle', () => {
+  describe('enlaces al detalle', () => {
     it('cada nombre es un link a /behaviors/{id}', async () => {
       getBehaviors.mockResolvedValue(
         response([
@@ -254,16 +256,16 @@ describe('Behaviors', () => {
           { id: 102, name: 'Atacante' },
         ]),
       );
- 
+
       await renderPage();
- 
+
       expect(screen.getByRole('link', { name: 'Defensor' })).toHaveAttribute('href', '/behaviors/101');
       expect(screen.getByRole('link', { name: 'Atacante' })).toHaveAttribute('href', '/behaviors/102');
     });
- 
+
     it('hacer clic en un behavior navega a su detalle', async () => {
       getBehaviors.mockResolvedValue(response([{ id: 101, name: 'Defensor' }]));
- 
+
       render(
         <MemoryRouter initialEntries={['/behaviors']}>
           <Routes>
@@ -274,17 +276,14 @@ describe('Behaviors', () => {
         </MemoryRouter>,
       );
       await flush();
- 
+
       fireEvent.click(screen.getByRole('link', { name: 'Defensor' }));
- 
+
       expect(screen.getByText('PAGINA DETALLE')).toBeInTheDocument();
       // El detalle se abre encima: la lista sigue montada detrás.
       expect(screen.getByRole('link', { name: 'Defensor' })).toBeInTheDocument();
     });
   });
-
-  // Pegar dentro del describe('Behaviors', ...) de Behaviors.test.jsx,
-// por ejemplo justo después del describe('paginación', ...).
 
   describe('página fuera de rango', () => {
     // Página 1 con datos; cualquier otra página llega vacía.
@@ -349,6 +348,31 @@ describe('Behaviors', () => {
 
       expect(getBehaviors).toHaveBeenLastCalledWith('', 2, expect.anything());
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('crear comportamiento', () => {
+    it('el botón "Crear" abre el formulario', async () => {
+      await renderPage();
+
+      fireEvent.click(button('Crear'));
+
+      expect(screen.getByRole('dialog', { name: 'Crear comportamiento' })).toBeInTheDocument();
+    });
+
+    it('al crear: cierra el formulario, avisa y vuelve a pedir el listado', async () => {
+      createBehavior.mockResolvedValue({ id: 9, name: 'Nuevo', type: 'playerBehavior', code: 'x = 1' });
+      await renderPage();
+      fireEvent.click(button('Crear'));
+      fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Nuevo' } });
+      fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'x = 1' } });
+
+      fireEvent.click(button('Confirmar'));
+      await flush();
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(screen.getByRole('status')).toHaveTextContent('Nuevo');
+      expect(getBehaviors).toHaveBeenCalledTimes(2);
     });
   });
 });
