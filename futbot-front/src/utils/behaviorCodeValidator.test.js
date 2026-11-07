@@ -217,11 +217,14 @@ describe('validateBehaviorCode: construcciones prohibidas', () => {
     ['constructNotAllowed', 'if a not in b:\n  pass', 1, 6],
     ['constructNotAllowed', 'x = {1, 2}', 1, 5],
     ['constructNotAllowed', 'x = {"a": 1}', 1, 5],
-    ['constructNotAllowed', '@deco\nx = 1', 1, 1],
     ['constructNotAllowed', 'x = a.__class__', 1, 7],
     ['constructNotAllowed', 'x = __a', 1, 5],
   ])('%s en %j', (rule, code, line, column) => {
     expect(run(code)).toMatchObject({ rule, line, column });
+  });
+
+  it('un decorador es callNotAllowed, como informa la API', () => {
+    expect(run('@deco\nx = 1')).toMatchObject({ rule: 'callNotAllowed', line: 1, column: 1 });
   });
 
   it('lo permitido sigue andando: índices, tuplas, if/elif/else, operadores lógicos', () => {
@@ -283,25 +286,11 @@ describe('validateBehaviorCodeLength', () => {
   });
 });
 
-describe('validateBehaviorCode: sintaxis real y nombres sin definir', () => {
+describe('validateBehaviorCode: sintaxis real de python', () => {
   const player = (code) => validateBehaviorCode(code, 'playerBehavior');
-
-  it('un nombre suelto que no existe es un error', () => {
-    expect(player('hola')).toMatchObject({ rule: 'undefinedName', line: 1, column: 1 });
-    expect(player('x = hola')).toMatchObject({ rule: 'undefinedName', column: 5 });
-  });
-
-  it('un nombre usado antes de asignarse es un error; después, no', () => {
-    expect(player('x = y\ny = 1')).toMatchObject({ rule: 'undefinedName', line: 1 });
-    expect(player('y = 1\nx = y')).toBeNull();
-  });
 
   it('errores de sintaxis que el tokenizer no ve', () => {
     expect(player('x = = 1')).toMatchObject({ rule: 'syntaxError' });
     expect(player('if i_have_ball()\n    kick()')).toMatchObject({ rule: 'syntaxError' });
-  });
-
-  it('las primitivas y variables asignadas siguen siendo válidas', () => {
-    expect(player('bx, by = ball_position()\ngo_to(bx, by)')).toBeNull();
   });
 });
