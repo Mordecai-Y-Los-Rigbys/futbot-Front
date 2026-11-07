@@ -3,12 +3,15 @@ import { getCurrentUser } from '../services/authService.js';
 
 export const AuthContext = createContext(null);
 
+// Marca en localStorage de que este navegador ya tuvo sesión (para el aviso de sesión expirada).
+const SESSION_FLAG = 'futbot:hadSession';
+
 
 export function AuthProvider({ children }) {
   // { id, username, clubName } cuando hay sesión, null cuando no
   const [user, setUser] = useState(null);
   // true mientras se consulta si la cookie de sesión sigue vigente
-  const [isLoading, setIsLoading] = useState(true);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
 
   // Al montar la app, preguntamos al backend si la cookie de sesión sigue vigente
   useEffect(() => {
@@ -22,7 +25,7 @@ export function AuthProvider({ children }) {
         if (active) setUser(null); // 401: no hay sesión
       })
       .finally(() => {
-        if (active) setIsLoading(false);
+        if (active) setIsCheckingSession(false);
       });
 
     return () => {
@@ -43,7 +46,7 @@ export function AuthProvider({ children }) {
 
 
   return (
-    <AuthContext.Provider value={{ user, setUser, isLoading }}>
+    <AuthContext.Provider value={{ user, setUser, isCheckingSession }}>
       {children}
     </AuthContext.Provider>
   );

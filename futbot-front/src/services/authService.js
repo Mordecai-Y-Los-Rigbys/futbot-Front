@@ -1,9 +1,6 @@
 import api from './api';
-import { loginMock } from './authMocks';
-
-// Modo sin backend: VITE_USE_MOCKS=true en futbot-front/.env.local y reiniciar Vite.
-// Nunca se activa en los tests (MODE === 'test'), que mockean `api` por su cuenta.
-const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true' && import.meta.env.MODE !== 'test';
+import { getCurrentUserMock, loginMock, registerMock } from './authMocks';
+import { USE_MOCKS } from '../config/mocks';
 
 export const loginUser = async (credentials) => {
   if (USE_MOCKS) return loginMock(credentials);
@@ -12,11 +9,13 @@ export const loginUser = async (credentials) => {
 };
 
 export async function getCurrentUser() {
+  if (USE_MOCKS) return getCurrentUserMock();
   const { data } = await api.get('/users/me');
   return data;
 }
 
 export const registerUser = async (userData) => {
+  if (USE_MOCKS) return registerMock(userData);
   const response = await api.post('/auth/register', userData);
   return response.data;
 };
