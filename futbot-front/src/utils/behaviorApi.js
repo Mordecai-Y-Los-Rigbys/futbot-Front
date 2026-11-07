@@ -1,7 +1,7 @@
 // API de comportamientos (fuente: "API DE CÓDIGO DE COMPORTAMIENTOS").
-// `shared` lo usan ambos tipos. Una sección con `complete: false` indica que su lista
-// todavía no está completa: el validador no marca como inválidas las llamadas
-// desconocidas de ese tipo (las resuelve el 409 del servidor).
+// `shared` lo usan ambos tipos. Una sección con `complete: false` indicaría que su
+// lista todavía no está completa (el validador no juzgaría las llamadas desconocidas
+// de ese tipo). Hoy ninguna lo usa.
 export const BEHAVIOR_API = {
   shared: {
     constants: [
@@ -22,6 +22,6 @@ export const BEHAVIOR_API = {
       'my_position', 'my_number', 'i_have_ball',
     ],
   },
-  // TODO: primitivas del DT (cambios de comportamiento y de jugador), no están en el documento.
-  coachBehavior: { constants: [], functions: [], complete: false },
+  // El DT queda fuera de este sprint
+  coachBehavior: { constants: [], functions: [] },
 };
