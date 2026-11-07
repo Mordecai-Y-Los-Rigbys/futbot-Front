@@ -283,52 +283,6 @@ function parserSyntaxErrors(code) {
   return errors;
 }
 
-// Nombres que se leen sin ser primitiva ni variable asignada antes.
-function undefinedNames(tokens, lookup) {
-  // Primera posición en que cada nombre aparece como destino de una asignación.
-  const firstAssigned = new Map();
-  const segments = [[]];
-  for (const token of tokens) {
-    if (token.type === 'newline') segments.push([]);
-    else segments[segments.length - 1].push(token);
-  }
-  for (const segment of segments) {
-    let lastAssign = -1;
-    segment.forEach((token, i) => {
-      if (token.type === 'op' && token.depth === 0 && ASSIGN_OPS.has(token.value)) lastAssign = i;
-    });
-    for (let i = 0; i < lastAssign; i += 1) {
-      const token = segment[i];
-      if (token.type !== 'name' || KEYWORDS.has(token.value)) continue;
-      const prev = segment[i - 1];
-      const next = segment[i + 1];
-      if (prev?.type === 'op' && prev.value === '.') continue;
-      if (next?.type === 'op' && ['.', '(', '['].includes(next.value)) continue;
-      if (!firstAssigned.has(token.value)) firstAssigned.set(token.value, token.index);
-    }
-  }
-
-  // Lecturas de nombres que no son primitivas ni fueron asignados antes.
-  const errors = [];
-  tokens.forEach((token, k) => {
-    if (token.type !== 'name' || KEYWORDS.has(token.value)) return;
-    const prev = tokens[k - 1];
-    const next = tokens[k + 1];
-    if (prev?.type === 'op' && prev.value === '.') return; // atributo
-    const isCall = next?.type === 'op' && next.value === '(';
-    if (isCall && lookup.skipUnknownCalls) return; // lista incompleta: no se juzga
-    const isKeywordArgument =
-      token.depth > 0 && next?.type === 'op' && next.value === '=' &&
-      (prev?.value === '(' || prev?.value === ',');
-    if (isKeywordArgument) return;
-    if (lookup.known.has(token.value)) return;
-    const first = firstAssigned.get(token.value);
-    if (first !== undefined && first <= token.index) return;
-    errors.push({ index: token.index, message: `"${token.value}" no está definido: no es una primitiva ni una variable asignada antes.` });
-  });
-  return errors;
-}
-
 /**
  * Devuelve TODOS los errores, ordenados por posición:
  * { rule, index, length, line, column, message }. `index` y `length` son offsets
@@ -433,7 +387,7 @@ export function validateBehaviorCodeAll(code, type, api = BEHAVIOR_API) {
     } else if (value === ':=') {
       consider(CONSTRUCT, token.index, 'No se permite el operador := .');
     } else if (value === '@' && token.indent !== undefined) {
-      consider(CONSTRUCT, token.index, 'No se permiten decoradores.');
+      consider('callNotAllowed', token.index, 'No se permiten decoradores.');
     }
   });
 
@@ -509,17 +463,10 @@ export function validateBehaviorCodeAll(code, type, api = BEHAVIOR_API) {
       .map((f) => build(f.rule, f.index, f.message, f.length));
   }
 
-  // Sin errores de reglas: sintaxis real de Python y nombres sin definir.
-  const parserErrors = parserSyntaxErrors(code);
-  if (parserErrors.length > 0) {
-    return parserErrors.map((e) => build('syntaxError', e.index, 'Sintaxis de Python inválida.', e.length));
-  }
-  if (lookup) {
-    return undefinedNames(tokens, lookup).map((e) =>
-      build('undefinedName', e.index, e.message),
-    );
-  }
-  return [];
+  // 3) Sin errores de reglas: sintaxis real de Python (parser de lezer).
+  return parserSyntaxErrors(code).map((e) =>
+    build('syntaxError', e.index, 'Sintaxis de Python inválida.', e.length),
+  );
 }
 
 /**
