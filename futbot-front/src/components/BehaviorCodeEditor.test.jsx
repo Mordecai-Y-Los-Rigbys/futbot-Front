@@ -36,7 +36,9 @@ describe('BehaviorCodeEditor', () => {
       <BehaviorCodeEditor
         value={'x = 1\nimport os'}
         onChange={vi.fn()}
-        diagnostics={[{ rule: 'importNotAllowed', message: 'No se permite usar import.', index: 6, length: 6, line: 2, column: 1 }]}
+        diagnostics={[
+          { rule: 'importNotAllowed', message: 'No se permite usar import.', index: 6, length: 6, line: 2, column: 1 },
+        ]}
       />,
     );
 

@@ -1,0 +1,57 @@
+/* Reusa overlay/window/header/body/footer de BehaviorDetail.css. */
+.create-behavior__form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.create-behavior__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.create-behavior__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.create-behavior__field label,
+.create-behavior__label {
+  font-size: 15px;
+  color: var(--text-h);
+}
+
+.create-behavior__field input,
+.create-behavior__field select {
+  font: inherit;
+  color: var(--text-h);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.create-behavior__field input:focus-visible,
+.create-behavior__field select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.create-behavior__footer {
+  gap: 12px;
+}
+
+.behavior-detail__overlay .create-behavior__footer button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.create-behavior__code-error {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 14px;
+  color: #de1918;
+}
