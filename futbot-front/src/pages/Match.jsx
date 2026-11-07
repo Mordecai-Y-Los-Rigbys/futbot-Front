@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import useMatchWebSocket from '../hooks/useMatchWebSocket';
-import { getMatch } from '../services/matchService';
+import { getMatch, getMatchLineups } from '../services/matchService';
+import { lineupsToPlayers } from '../utils/lineups';
 import Pitch2DCanvas from '../components/Pitch2DCanvas';
 import ScoreboardOverlay from '../components/ScoreboardOverlay';
 import './Match.css';
 
-// TODO: `players` (nombre, atributos y behavior por jugador) sigue sin contrato:
-// GET /matches/{id} solo trae los clubes.
+// `players` se completa con GET /matches/{id}/lineups (nombre, rol y club de cada titular).
 const INITIAL_ROSTER = { clubs: [null, null], players: {} };
 
 export default function Match() {
@@ -34,6 +34,27 @@ export default function Match() {
       });
     return () => controller.abort();
   }, [id, started]);
+
+    const paused = meta.phase === 'paused';
+
+  // Nombres de los titulares (GET /matches/{id}/lineups). Se pide:
+  //  - al montar;
+  //  - al llegar el primer tick (`started`): en un amistoso club2 es null hasta que el rival se une;
+  //  - al terminar cada pausa: las sustituciones se aplican en las pausas y el suplente que
+  //    entra toma el rol de titular. Durante la pausa no se pide (el efecto sale antes).
+  // Cualquier error (401, 403, 404, red) solo deja la cancha sin nombres: la salida del
+  // partido la decide únicamente el WebSocket (fatal). Se conserva el último roster válido.
+  useEffect(() => {
+    if (paused) return undefined;
+    const controller = new AbortController();
+    getMatchLineups(id, { signal: controller.signal })
+      .then((lineups) => {
+        if (controller.signal.aborted) return;
+        setRoster((prev) => ({ ...prev, players: lineupsToPlayers(lineups) }));
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [id, started, paused]);
 
   // Cierre fatal (1008, 4xxx, waitExpired, 401...): sale del partido con un aviso.
   useEffect(() => {
