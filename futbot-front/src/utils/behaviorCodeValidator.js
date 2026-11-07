@@ -1,8 +1,8 @@
+import { parser as pythonParser } from '@lezer/python';
 import { BEHAVIOR_API } from './behaviorApi';
 
 // Validador del código de un behavior, del lado del cliente. Replica las reglas de la
-// API de código de comportamientos y devuelve el PRIMER error:
-// { rule, line, column, message }, o null. No es un parser completo de Python:
+// API de código de comportamientos. No es un parser completo de Python:
 // el servidor sigue siendo la autoridad (409).
 
 export const MAX_CODE_LINES = 250;
@@ -62,7 +62,7 @@ const NAME = /[\p{L}_][\p{L}\p{N}_]*/uy;
 const NUMBER = /\d[\w.]*/y;
 
 // ---------------------------------------------------------------------------
-// Tokenizer. Cada token: { type, value, index, depth, indent?, fstring? }.
+// Tokenizer. Cada token: { type, value, index, length, depth, indent?, fstring? }.
 // `depth` es el nivel de paréntesis/corchetes que lo contiene. `indent` solo está en
 // el primer token de cada línea lógica. Los saltos de línea dentro de paréntesis no
 // generan token 'newline'.
@@ -76,8 +76,8 @@ function tokenize(code) {
   let atLineStart = true;
   let lineIndent = null;
 
-  const push = (type, value, index) => {
-    const token = { type, value, index, depth: stack.length };
+  const push = (type, value, index, length = value.length) => {
+    const token = { type, value, index, length, depth: stack.length };
     if (lineIndent !== null) {
       token.indent = lineIndent;
       lineIndent = null;
@@ -92,7 +92,7 @@ function tokenize(code) {
     const delim = triple ? q.repeat(3) : q;
     let j = quoteIndex + delim.length;
     const finish = (end) => {
-      const token = push('string', '', from);
+      const token = push('string', '', from, end - from);
       if (isF) token.fstring = true;
       return end;
     };
@@ -269,14 +269,78 @@ function buildLookup(api, type) {
   return { known, allConstants, allowed, allowedFunctions, skipUnknownCalls };
 }
 
+// Errores de sintaxis que detecta el parser real de Python (error-tolerante).
+function parserSyntaxErrors(code) {
+  const errors = [];
+  pythonParser.parse(code).iterate({
+    enter(node) {
+      if (!node.type.isError) return undefined;
+      const index = Math.min(node.from, Math.max(code.length - 1, 0));
+      errors.push({ index, length: Math.max(1, node.to - node.from) });
+      return false; // no hace falta bajar a los hijos
+    },
+  });
+  return errors;
+}
+
+// Nombres que se leen sin ser primitiva ni variable asignada antes.
+function undefinedNames(tokens, lookup) {
+  // Primera posición en que cada nombre aparece como destino de una asignación.
+  const firstAssigned = new Map();
+  const segments = [[]];
+  for (const token of tokens) {
+    if (token.type === 'newline') segments.push([]);
+    else segments[segments.length - 1].push(token);
+  }
+  for (const segment of segments) {
+    let lastAssign = -1;
+    segment.forEach((token, i) => {
+      if (token.type === 'op' && token.depth === 0 && ASSIGN_OPS.has(token.value)) lastAssign = i;
+    });
+    for (let i = 0; i < lastAssign; i += 1) {
+      const token = segment[i];
+      if (token.type !== 'name' || KEYWORDS.has(token.value)) continue;
+      const prev = segment[i - 1];
+      const next = segment[i + 1];
+      if (prev?.type === 'op' && prev.value === '.') continue;
+      if (next?.type === 'op' && ['.', '(', '['].includes(next.value)) continue;
+      if (!firstAssigned.has(token.value)) firstAssigned.set(token.value, token.index);
+    }
+  }
+
+  // Lecturas de nombres que no son primitivas ni fueron asignados antes.
+  const errors = [];
+  tokens.forEach((token, k) => {
+    if (token.type !== 'name' || KEYWORDS.has(token.value)) return;
+    const prev = tokens[k - 1];
+    const next = tokens[k + 1];
+    if (prev?.type === 'op' && prev.value === '.') return; // atributo
+    const isCall = next?.type === 'op' && next.value === '(';
+    if (isCall && lookup.skipUnknownCalls) return; // lista incompleta: no se juzga
+    const isKeywordArgument =
+      token.depth > 0 && next?.type === 'op' && next.value === '=' &&
+      (prev?.value === '(' || prev?.value === ',');
+    if (isKeywordArgument) return;
+    if (lookup.known.has(token.value)) return;
+    const first = firstAssigned.get(token.value);
+    if (first !== undefined && first <= token.index) return;
+    errors.push({ index: token.index, message: `"${token.value}" no está definido: no es una primitiva ni una variable asignada antes.` });
+  });
+  return errors;
+}
+
 /**
+ * Devuelve TODOS los errores, ordenados por posición:
+ * { rule, index, length, line, column, message }. `index` y `length` son offsets
+ * en el string (sirven para subrayar el token completo). Con errores de sintaxis
+ * solo se informan los de sintaxis. No es un parser completo: el servidor manda.
  * @param {string} code
  * @param {'playerBehavior'|'coachBehavior'} [type]
  * @param {object|null} [api]  Lista de primitivas (por defecto BEHAVIOR_API).
- * @returns {null | { rule: string, line: number, column: number, message: string }}
+ * @returns {Array}
  */
-export function validateBehaviorCode(code, type, api = BEHAVIOR_API) {
-  if (typeof code !== 'string' || code === '') return null;
+export function validateBehaviorCodeAll(code, type, api = BEHAVIOR_API) {
+  if (typeof code !== 'string' || code === '') return [];
 
   const lineStarts = [0];
   for (let i = 0; i < code.length; i += 1) if (code[i] === '\n') lineStarts.push(i + 1);
@@ -285,28 +349,38 @@ export function validateBehaviorCode(code, type, api = BEHAVIOR_API) {
     while (line + 1 < lineStarts.length && lineStarts[line + 1] <= index) line += 1;
     return { line: line + 1, column: index - lineStarts[line] + 1 };
   };
-  const build = (rule, index, message) => ({
+
+  const { tokens, syntaxErrors } = tokenize(code);
+  syntaxErrors.push(...checkIndentation(tokens));
+  const lengthAt = new Map(tokens.filter((t) => t.length).map((t) => [t.index, t.length]));
+  const build = (rule, index, message, length = lengthAt.get(index) ?? 1) => ({
     rule,
+    index,
+    length,
     ...locate(index),
     message: message ?? MESSAGES[rule],
   });
 
   // 1) Sintaxis. Con errores de sintaxis no se evalúan las demás reglas (igual que el servidor).
-  const { tokens, syntaxErrors } = tokenize(code);
-  syntaxErrors.push(...checkIndentation(tokens));
   if (syntaxErrors.length > 0) {
-    const first = syntaxErrors.reduce((a, b) => (b.index < a.index ? b : a));
-    return build('syntaxError', first.index, first.message);
+    const byIndex = new Map();
+    syntaxErrors.forEach((e) => {
+      if (!byIndex.has(e.index)) byIndex.set(e.index, e);
+    });
+    return [...byIndex.values()]
+      .sort((a, b) => a.index - b.index)
+      .map((e) => build('syntaxError', e.index, e.message));
   }
 
-  // 2) Reglas de validez: gana la primera por posición (línea y después columna).
-  let best = null;
-  const consider = (rule, index, message) => {
-    if (best === null || index < best.index) best = { rule, index, message };
+  // 2) Reglas de validez. Por posición se queda la primera que se registra
+  // (las asignaciones se evalúan antes para ganar un empate).
+  const found = new Map();
+  const consider = (rule, index, message, length) => {
+    if (!found.has(index)) found.set(index, { rule, index, message, length });
   };
   const lookup = buildLookup(api, type);
 
-  // Asignaciones a primitivas (constantes o funciones). Se evalúan primero para ganar un empate.
+  // Asignaciones a primitivas (constantes o funciones).
   if (lookup) {
     const segments = [[]];
     for (const token of tokens) {
@@ -390,11 +464,11 @@ export function validateBehaviorCode(code, type, api = BEHAVIOR_API) {
       consider(token.depth > 0 ? 'comprehensionNotAllowed' : 'loopNotAllowed', token.index);
     } else if (word === 'in') {
       const isNotIn = prev?.type === 'name' && prev.value === 'not';
-      consider(
-        CONSTRUCT,
-        isNotIn ? prev.index : token.index,
-        isNotIn ? 'No se permite el operador not in.' : 'No se permite el operador in.',
-      );
+      if (isNotIn) {
+        consider(CONSTRUCT, prev.index, 'No se permite el operador not in.', token.index + 2 - prev.index);
+      } else {
+        consider(CONSTRUCT, token.index, 'No se permite el operador in.');
+      }
     } else if (KEYWORD_RULES[word]) {
       const [rule, message] = KEYWORD_RULES[word];
       consider(rule, token.index, message);
@@ -429,7 +503,31 @@ export function validateBehaviorCode(code, type, api = BEHAVIOR_API) {
     }
   }
 
-  return best ? build(best.rule, best.index, best.message) : null;
+  if (found.size > 0) {
+    return [...found.values()]
+      .sort((a, b) => a.index - b.index)
+      .map((f) => build(f.rule, f.index, f.message, f.length));
+  }
+
+  // Sin errores de reglas: sintaxis real de Python y nombres sin definir.
+  const parserErrors = parserSyntaxErrors(code);
+  if (parserErrors.length > 0) {
+    return parserErrors.map((e) => build('syntaxError', e.index, 'Sintaxis de Python inválida.', e.length));
+  }
+  if (lookup) {
+    return undefinedNames(tokens, lookup).map((e) =>
+      build('undefinedName', e.index, e.message),
+    );
+  }
+  return [];
+}
+
+/**
+ * Solo el primer error por posición, o null.
+ * @returns {null | { rule: string, line: number, column: number, message: string }}
+ */
+export function validateBehaviorCode(code, type, api = BEHAVIOR_API) {
+  return validateBehaviorCodeAll(code, type, api)[0] ?? null;
 }
 
 /**
