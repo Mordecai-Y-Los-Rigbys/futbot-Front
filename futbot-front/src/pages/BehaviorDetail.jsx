@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import axios from 'axios';
+import BehaviorFormDialog from '../components/BehaviorFormDialog';
 import { getBehaviorById } from '../services/behaviorService';
+import '../components/BehaviorModal.css';
 import './BehaviorDetail.css';
 
 const LIST_PATH = '/behaviors';
@@ -24,6 +26,7 @@ const errorMessage = (err) => {
 export default function BehaviorDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const outlet = useOutletContext(); // undefined si no hay contexto (ej: tests sin él)
   const dialogRef = useRef(null);
 
   // Resultado de la última request terminada, con el id al que corresponde.
@@ -35,7 +38,16 @@ export default function BehaviorDetail() {
   const behavior = current?.behavior ?? null;
   const error = current?.error ?? null;
 
+  const [isEditing, setIsEditing] = useState(false);
+
   const goToList = () => navigate(LIST_PATH);
+
+  // Al guardar: se muestra lo editado, se cierra el formulario y se avisa a la lista.
+  const handleSaved = (updated) => {
+    setResult({ id, behavior: updated, error: null });
+    setIsEditing(false);
+    outlet?.onBehaviorUpdated?.();
+  };
 
   // Carga del detalle. Se cancela si cambia el id o se desmonta el popup,
   // para que una respuesta vieja no pise a una nueva.
@@ -57,73 +69,89 @@ export default function BehaviorDetail() {
     dialogRef.current?.focus();
   }, []);
 
-  // Escape cierra el popup.
+  // Escape cierra el popup, salvo que esté abierto el formulario de edición
+  // (ese se cierra solo con Escape y deja el detalle).
   useEffect(() => {
     const onKeyDown = (event) => {
-      if (event.key === 'Escape') navigate(LIST_PATH);
+      if (event.key === 'Escape' && !isEditing) navigate(LIST_PATH);
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [navigate]);
+  }, [navigate, isEditing]);
 
   return (
-    <div
-      className="behavior-detail__overlay"
-      data-testid="behavior-overlay"
-      onClick={(event) => {
-        // Solo cierra si el clic fue en el fondo oscuro, no dentro de la ventana.
-        if (event.target === event.currentTarget) goToList();
-      }}
-    >
-      <section
-        ref={dialogRef}
-        tabIndex={-1}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="behavior-detail-title"
-        className="behavior-detail__window"
+    <>
+      <div
+        className="modal__overlay"
+        data-testid="behavior-overlay"
+        onClick={(event) => {
+          // Solo cierra si el clic fue en el fondo oscuro, no dentro de la ventana.
+          if (event.target === event.currentTarget) goToList();
+        }}
       >
-        <header className="behavior-detail__header">
-          <h2 id="behavior-detail-title">{behavior ? behavior.name : 'Comportamiento'}</h2>
-          <button
-            type="button"
-            className="behavior-detail__close"
-            aria-label="Cerrar"
-            onClick={goToList}
-          >
-            <span aria-hidden="true">×</span>
-          </button>
-        </header>
+        <section
+          ref={dialogRef}
+          tabIndex={-1}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="behavior-detail-title"
+          className="modal__window"
+        >
+          <header className="modal__header">
+            <h2 id="behavior-detail-title">{behavior ? behavior.name : 'Comportamiento'}</h2>
+            <button
+              type="button"
+              className="modal__close"
+              aria-label="Cerrar"
+              onClick={goToList}
+            >
+              <span aria-hidden="true">×</span>
+            </button>
+          </header>
 
-        <div className="behavior-detail__body">
-          {isLoading && (
-            <div role="status" aria-label="Cargando comportamiento" className="behavior-detail__skeleton">
-              <span />
-              <span />
-              <span />
-              <span />
-            </div>
-          )}
+          <div className="modal__body">
+            {isLoading && (
+              <div role="status" aria-label="Cargando comportamiento" className="behavior-detail__skeleton">
+                <span />
+                <span />
+                <span />
+                <span />
+              </div>
+            )}
 
-          {!isLoading && error && (
-            <p className="behavior-detail__error" role="alert">
-              {error}
-            </p>
-          )}
+            {!isLoading && error && (
+              <p className="modal__error" role="alert">
+                {error}
+              </p>
+            )}
 
-          {!isLoading && !error && behavior && (
-            <pre className="behavior-detail__code">
-              <code>{behavior.code}</code>
-            </pre>
-          )}
-        </div>
+            {!isLoading && !error && behavior && (
+              <pre className="behavior-detail__code">
+                <code>{behavior.code}</code>
+              </pre>
+            )}
+          </div>
 
-        <footer className="behavior-detail__footer">
-          <button type="button" onClick={goToList}>
-            Volver
-          </button>
-        </footer>
-      </section>
-    </div>
+          <footer className="modal__footer">
+            {!isLoading && !error && behavior && (
+              <button type="button" onClick={() => setIsEditing(true)}>
+                Editar
+              </button>
+            )}
+            <button type="button" onClick={goToList}>
+              Volver
+            </button>
+          </footer>
+        </section>
+      </div>
+
+      {isEditing && behavior && (
+        <BehaviorFormDialog
+          behavior={behavior}
+          onClose={() => setIsEditing(false)}
+          onSaved={handleSaved}
+        />
+      )}
+    </>
   );
 }
