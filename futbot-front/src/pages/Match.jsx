@@ -4,6 +4,7 @@ import useMatchWebSocket from '../hooks/useMatchWebSocket';
 import { getMatch } from '../services/matchService';
 import Pitch2DCanvas from '../components/Pitch2DCanvas';
 import ScoreboardOverlay from '../components/ScoreboardOverlay';
+import MatchBehaviorPanel from '../components/MatchBehaviorPanel';
 import './Match.css';
 
 // TODO: `players` (nombre, atributos y behavior por jugador) sigue sin contrato:
@@ -51,6 +52,7 @@ export default function Match() {
           status={status}
           onExit={() => navigate('/', { replace: true })}
         />
+        <MatchBehaviorPanel matchId={id} canManage={status === 'open'} />
       </div>
     </main>
   );
