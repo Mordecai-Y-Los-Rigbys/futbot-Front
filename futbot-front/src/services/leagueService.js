@@ -4,6 +4,8 @@ import {
   getLeagueMock,
   getLeaguesMock,
   unlockLeagueMock,
+  leaveLeagueMock,
+  joinLeagueMock,
 } from './leagueMocks';
 
 

@@ -115,6 +115,9 @@ function findLeague(id) {
 function participantsOf(league) {
   if (!participantsByLeague.has(league.id)) {
     participantsByLeague.set(league.id, [{ ...league.creator, avatar: 1 }]);
+    if(league.id === 2) {
+      participantsByLeague.get(league.id).push({ ...MOCK_CURRENT_USER });
+    }
   }
   return participantsByLeague.get(league.id);
 }
