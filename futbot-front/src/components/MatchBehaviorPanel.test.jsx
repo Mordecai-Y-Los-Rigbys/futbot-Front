@@ -11,9 +11,10 @@ vi.mock('../services/matchService', () => ({
   reassignBehavior: vi.fn(),
 }));
 
-const starters = [
-  { playerId: 1, playerName: 'Ada Delantera', role: 'forward' },
-  { playerId: 2, playerName: 'Bea Mediocampista', role: 'midfield' },
+const members = [
+  { playerId: 1, name: 'Ada Delantera', role: 'forward' },
+  { playerId: 2, name: 'Bea Mediocampista', role: 'midfield' },
+  { playerId: 7, name: 'Cami Suplente', role: 'substitute' },
 ];
 const behaviors = {
   items: [
@@ -29,7 +30,7 @@ const behaviors = {
 describe('MatchBehaviorPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getMatchTeam.mockResolvedValue({ starters });
+    getMatchTeam.mockResolvedValue({ members, coachBehavior: null });
     getMatchBehavior.mockImplementation(async (...args) => {
       const playerId = args[1];
       return {
@@ -60,6 +61,24 @@ describe('MatchBehaviorPanel', () => {
     await waitFor(() => {
       expect(screen.queryByRole('complementary', { name: 'Cambio de comportamiento' })).not.toBeInTheDocument();
     });
+  });
+
+  it('solo lista a los titulares: los suplentes no tienen comportamiento para cambiar', async () => {
+    render(<MatchBehaviorPanel matchId="42" canManage />);
+
+    const starterList = await screen.findByRole('list');
+    expect(within(starterList).queryByText('Cami Suplente')).not.toBeInTheDocument();
+    expect(getMatchBehavior).toHaveBeenCalledTimes(2);
+  });
+
+  it('vuelve a pedir el equipo cuando cambia teamVersion (se aplicó una sustitución)', async () => {
+    const { rerender } = render(<MatchBehaviorPanel matchId="42" canManage teamVersion={0} />);
+    await screen.findByRole('list');
+    expect(getMatchTeam).toHaveBeenCalledTimes(1);
+
+    rerender(<MatchBehaviorPanel matchId="42" canManage teamVersion={1} />);
+
+    await waitFor(() => expect(getMatchTeam).toHaveBeenCalledTimes(2));
   });
 
   it('muestra titulares y comportamientos actuales y carga todas las páginas', async () => {
