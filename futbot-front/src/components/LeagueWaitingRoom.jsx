@@ -8,6 +8,14 @@ import useLeagueSocket from '../hooks/useLeagueSocket';
 import { leaveLeague } from '../services/leagueService';
 import './LeagueWaitingRoom.css';
 
+// Mismo mapa que Leagues.jsx: si hace falta en una tercera pantalla, conviene moverlo a un módulo común.
+const STATUS_LABELS = {
+  preparation: 'En preparación',
+  started: 'En curso',
+  cancelled: 'Cancelada',
+  finished: 'Finalizada',
+};
+
 // Cierres del canal que no son un error: la pantalla se va o se vuelve a pedir la liga.
 const LEAVING_CLOSE_CODES = [1000, 4401, 4404, 4409];
 const SESSION_MESSAGE = 'Tu sesión venció. Iniciá sesión nuevamente.';
@@ -126,7 +134,7 @@ export default function LeagueWaitingRoom({ league, onLeagueChanged }) {
         </div>
         <p>{`Creada por ${league.creator.name} · @${league.creator.username}`}</p>
         <ul className="league-lobby__facts">
-          <li>{league.status === 'preparation' ? 'En Preparación' : league.status}</li>
+          <li>{STATUS_LABELS[league.status] || league.status}</li>
           <li>{spotsLeft === 0 ? 'Cupo completo' : `Faltan ${spotsLeft} para completar el cupo`}</li>
           <li>{`Mínimo ${league.minParticipants}`}</li>
         </ul>
