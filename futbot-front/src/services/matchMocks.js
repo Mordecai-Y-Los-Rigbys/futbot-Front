@@ -73,7 +73,7 @@ export function createMatchSocketMock() {
 }
 
 // Ids "trampa": 4031 -> 403, 4041 -> 404, 4091 -> 409, 0 -> ambos clubes sin cambios.
-export async function getNextSubstitutionsMock(matchId) {
+export async function getSubstitutionsMock(matchId) {
   await wait(300);
 
   if (matchId === '4031') throw httpError(403, { message: 'El partido no te pertenece.' });

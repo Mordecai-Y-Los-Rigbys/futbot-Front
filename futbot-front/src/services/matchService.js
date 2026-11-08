@@ -6,6 +6,7 @@ import {
   getMatchBehaviorMock,
   getMatchTeamMock,
   reassignBehaviorMock,
+  getSubstitutionsMock
 } from './matchMocks';
 import { USE_MOCKS } from '../config/mocks';
 
@@ -25,16 +26,16 @@ export async function createMatchConnection(matchId) {
 }
 
 /**
- * Primera sustitución de cada equipo (GET /matches/{id}/substitutions/next).
+ * Primera sustitución de cada equipo (GET /matches/{id}/substitutions).
  * Solo la pueden pedir los dos jugadores del partido y solo con el partido en juego.
  * Errores posibles: 401 (sin sesión), 403 (no juega), 404 (no existe), 409 (matchNotStarted).
  * @returns {Promise<{ club1: Substitution|null, club2: Substitution|null }>}
  *   donde Substitution = { starterName, substituteName } (sale / entra).
  */
-export async function getNextSubstitutions(matchId, { signal } = {}) {
-  if (USE_MOCKS) return getNextSubstitutionsMock(matchId, { signal });
+export async function getSubstitutions(matchId, { signal } = {}) {
+  if (USE_MOCKS) return getSubstitutionsMock(matchId, { signal });
 
-  const { data } = await api.get(`/matches/${encodeURIComponent(matchId)}/substitutions/next`, { signal });
+  const { data } = await api.get(`/matches/${encodeURIComponent(matchId)}/substitutions`, { signal });
   return data;
 }
 
