@@ -10,9 +10,9 @@ vi.mock('../services/matchService', () => ({
 
 const makeSocket = () => ({ onopen: null, onmessage: null, onclose: null, close: vi.fn() });
 
-const setup = async () => {
+const setup = async (connection = { tokenWs: 'tok' }) => {
   const socket = makeSocket();
-  createMatchConnection.mockResolvedValue({ tokenWs: 'tok' });
+  createMatchConnection.mockResolvedValue(connection);
   openMatchSocket.mockReturnValue(socket);
   const hook = renderHook(() => useMatchWebSocket('123'));
   await waitFor(() => expect(openMatchSocket).toHaveBeenCalledWith('123', 'tok'));
@@ -131,5 +131,75 @@ describe('useMatchWebSocket', () => {
     act(() => socket.onmessage(tick({ phase: 'countdown', pauseRemainingSeconds: null })));
 
     expect(result.current.meta).toMatchObject({ phase: 'countdown', countdown: null });
+  });
+
+  describe('sustituciones', () => {
+    it('expone el role que devuelve POST /matches/{id}/connections', async () => {
+      const { result } = await setup({ tokenWs: 'tok', role: 'player' });
+
+      await waitFor(() => expect(result.current.role).toBe('player'));
+    });
+
+    it('un espectador queda con role spectator; sin role en la respuesta queda null', async () => {
+      const spectator = await setup({ tokenWs: 'tok', role: 'spectator' });
+      await waitFor(() => expect(spectator.result.current.role).toBe('spectator'));
+      spectator.unmount();
+
+      const unknown = await setup({ tokenWs: 'tok' });
+      expect(unknown.result.current.role).toBeNull();
+    });
+
+    it('sin ticks no hay pausesLeft; cada tick lo pisa con el estado completo', async () => {
+      const { socket, result } = await setup();
+      expect(result.current.meta.pausesLeft).toBeNull();
+
+      act(() => socket.onmessage(tick({ phase: 'countdown', pausesLeft: 3, event: { type: 'periodStart', periodNumber: 1, countdownSeconds: 5 } })));
+      expect(result.current.meta.pausesLeft).toBe(3);
+
+      act(() => socket.onmessage(tick({ phase: 'paused', pausesLeft: 2, pauseRemainingSeconds: 15, event: { type: 'pause', reason: 'hydration' } })));
+      expect(result.current.meta.pausesLeft).toBe(2);
+    });
+
+    it('conexión tardía con pausesLeft en 0: el primer tick ya lo informa', async () => {
+      const { socket, result } = await setup();
+
+      act(() => socket.onmessage(tick({ phase: 'playing', pausesLeft: 0 })));
+
+      expect(result.current.meta).toMatchObject({ phase: 'playing', pausesLeft: 0, teamVersion: 0 });
+    });
+
+    it('el evento pause sube teamVersion (ahí se aplica la pendiente)', async () => {
+      const { socket, result } = await setup();
+      expect(result.current.meta.teamVersion).toBe(0);
+
+      act(() => socket.onmessage(tick({ phase: 'paused', pausesLeft: 2, pauseRemainingSeconds: 15, event: { type: 'pause', reason: 'hydration' } })));
+      expect(result.current.meta.teamVersion).toBe(1);
+
+      // Los ticks siguientes de la misma pausa no lo vuelven a subir.
+      act(() => socket.onmessage(tick({ phase: 'paused', pausesLeft: 2, pauseRemainingSeconds: 14 })));
+      expect(result.current.meta.teamVersion).toBe(1);
+    });
+
+    it('periodStart con periodNumber ≥ 2 sube teamVersion; el del período 1 no', async () => {
+      const { socket, result } = await setup();
+
+      act(() => socket.onmessage(tick({ phase: 'countdown', pausesLeft: 3, event: { type: 'periodStart', periodNumber: 1, countdownSeconds: 5 } })));
+      expect(result.current.meta.teamVersion).toBe(0);
+
+      act(() => socket.onmessage(tick({ phase: 'countdown', pausesLeft: 2, event: { type: 'periodStart', periodNumber: 2, countdownSeconds: 5 } })));
+      expect(result.current.meta.teamVersion).toBe(1);
+
+      act(() => socket.onmessage(tick({ phase: 'countdown', pausesLeft: 1, event: { type: 'periodStart', periodNumber: 3, countdownSeconds: 5 } })));
+      expect(result.current.meta.teamVersion).toBe(2);
+    });
+
+    it('un tick sin eventos (o con un gol) no sube teamVersion', async () => {
+      const { socket, result } = await setup();
+
+      act(() => socket.onmessage(tick({ phase: 'playing', pausesLeft: 3 })));
+      act(() => socket.onmessage(tick({ phase: 'playing', pausesLeft: 3, score1: 1, event: { type: 'goal', club: 'club1', scoringClub: 'A' } })));
+
+      expect(result.current.meta.teamVersion).toBe(0);
+    });
   });
 });
