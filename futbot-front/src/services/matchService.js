@@ -6,7 +6,8 @@ import {
   getMatchBehaviorMock,
   getMatchTeamMock,
   reassignBehaviorMock,
-  getSubstitutionsMock
+  getSubstitutionsMock,
+  setSubstitutionMock,
 } from './matchMocks';
 import { USE_MOCKS } from '../config/mocks';
 
@@ -15,8 +16,9 @@ import { USE_MOCKS } from '../config/mocks';
 
 /**
  * Pide el tokenWs para abrir el WebSocket del partido (POST /matches/{id}/connections).
- * Errores posibles: 401 (sin sesión), 403 (no participa), 404 (no existe), 409 (terminado/cancelado).
- * @returns {Promise<{ tokenWs: string }>}
+ * Errores posibles: 401 (sin sesión), 403 (sin acceso), 404 (no existe), 409 (terminado/cancelado).
+ * @returns {Promise<{ tokenWs: string, role: 'player' | 'spectator' }>}
+ *   `role` dice si la conexión es de jugador o de espectador (solo lectura).
  */
 export async function createMatchConnection(matchId) {
   if (USE_MOCKS) return createMatchConnectionMock(matchId);
@@ -26,7 +28,8 @@ export async function createMatchConnection(matchId) {
 }
 
 /**
- * Primera sustitución de cada equipo (GET /matches/{id}/substitutions).
+ * Sustitución de cada equipo (GET /matches/{id}/substitutions): la PENDIENTE (se aplica en la
+ * próxima pausa) si el partido no está en pausa, y la APLICADA al empezar la pausa si lo está.
  * Solo la pueden pedir los dos jugadores del partido y solo con el partido en juego.
  * Errores posibles: 401 (sin sesión), 403 (no juega), 404 (no existe), 409 (matchNotStarted).
  * @returns {Promise<{ club1: Substitution|null, club2: Substitution|null }>}
@@ -53,15 +56,31 @@ export async function getMatch(matchId, { signal } = {}) {
 }
 
 /**
- * Obtiene los titulares del equipo del usuario en el partido.
- * Contrato provisional: { starters: { playerId, playerName, role }[] }.
- * @returns {Promise<{ starters: { playerId: number, playerName: string, role: string }[] }>}
+ * Equipo del usuario en el partido (GET /matches/{id}/team). Solo para jugadores del partido.
+ * Siempre 6 miembros: los 3 titulares (forward, midfield, defense) y los 3 suplentes (substitute).
+ * Refleja las sustituciones ya aplicadas; una pendiente todavía no se ve acá.
+ * Errores posibles: 401 (sin sesión), 403 (`notAPlayerInMatch`), 404 (no existe).
+ * @returns {Promise<{ members: { playerId: number, name: string, role: string, behavior: object }[],
+ *   coachBehavior: object|null }>}
  */
 export async function getMatchTeam(matchId, { signal } = {}) {
   if (USE_MOCKS) return getMatchTeamMock(matchId);
 
   const { data } = await api.get(`/matches/${encodeURIComponent(matchId)}/team`, { signal });
   return data;
+}
+
+/**
+ * Pide una sustitución (PUT /matches/{id}/substitutions): un suplente entra por un titular.
+ * Responde 204 sin body. Queda pendiente y se aplica al empezar la próxima pausa; cada PUT
+ * reemplaza a la pendiente anterior.
+ * Errores posibles: 400 (`invalidFields`, con `notStarter` / `notSubstitute` si la selección quedó vieja),
+ * 401, 403 (no es jugador), 404, 409 (`matchNotStarted`, `matchInPenalties`, `noPausesLeft`).
+ */
+export async function setSubstitution(matchId, { starterId, substituteId }) {
+  if (USE_MOCKS) return setSubstitutionMock(matchId, { starterId, substituteId });
+
+  await api.put(`/matches/${encodeURIComponent(matchId)}/substitutions`, { starterId, substituteId });
 }
 
 /** Obtiene el comportamiento actual de un titular durante el partido. */
