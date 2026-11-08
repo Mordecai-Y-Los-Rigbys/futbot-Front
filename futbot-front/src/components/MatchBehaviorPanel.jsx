@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getBehaviors } from '../services/behaviorService';
 import { getMatchBehavior, getMatchTeam, reassignBehavior } from '../services/matchService';
+import { splitTeam } from '../utils/substitutions';
 import './MatchBehaviorPanel.css';
 
 async function getAllPlayerBehaviors(signal) {
@@ -47,7 +48,8 @@ function getErrorMessage(error) {
   return error.response?.data?.message || 'No se pudo completar la solicitud. Intentá nuevamente.';
 }
 
-export default function MatchBehaviorPanel({ matchId, canManage }) {
+// `teamVersion` sube cuando cambia el equipo (se aplicó una sustitución): se recargan los titulares.
+export default function MatchBehaviorPanel({ matchId, canManage, teamVersion = 0 }) {
   const [loadedPanel, setLoadedPanel] = useState(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState('');
   const [selectedBehaviorId, setSelectedBehaviorId] = useState('');
@@ -55,7 +57,7 @@ export default function MatchBehaviorPanel({ matchId, canManage }) {
   const [actionError, setActionError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
-  const requestKey = JSON.stringify([matchId, reloadKey]);
+  const requestKey = JSON.stringify([matchId, reloadKey, teamVersion]);
   const isCurrentPanel = loadedPanel?.key === requestKey;
   const starters = isCurrentPanel ? loadedPanel.starters : [];
   const behaviors = isCurrentPanel ? loadedPanel.behaviors : [];
@@ -73,14 +75,21 @@ export default function MatchBehaviorPanel({ matchId, canManage }) {
     async function loadPanel() {
       try {
         const team = await getMatchTeam(matchId, { signal: controller.signal });
-        if (!Array.isArray(team?.starters)
-          || team.starters.some((starter) => !Number.isInteger(starter.playerId) || !starter.playerName)) {
+        if (!Array.isArray(team?.members)) {
+          throw new Error('La respuesta del equipo no tiene el formato esperado.');
+        }
+        const teamStarters = splitTeam(team).starters.map((member) => ({
+          playerId: member.playerId,
+          playerName: member.name,
+          role: member.role,
+        }));
+        if (teamStarters.some((starter) => !Number.isInteger(starter.playerId) || !starter.playerName)) {
           throw new Error('La respuesta del equipo no tiene el formato esperado.');
         }
 
         const [playerBehaviors, startersWithBehavior] = await Promise.all([
           getAllPlayerBehaviors(controller.signal),
-          Promise.all(team.starters.map(async (starter) => {
+          Promise.all(teamStarters.map(async (starter) => {
             const currentBehavior = await getMatchBehavior(matchId, starter.playerId, { signal: controller.signal });
             if (!currentBehavior?.name) throw new Error('No se pudo identificar el comportamiento actual.');
             return { ...starter, currentBehavior };
