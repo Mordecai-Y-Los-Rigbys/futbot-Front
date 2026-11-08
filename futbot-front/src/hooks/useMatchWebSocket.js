@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createMatchConnection, openMatchSocket } from '../services/matchService';
+import { EMPTY_KICKS, sameCurrent, sameKicks } from '../utils/penalties';
 
 const MAX_RETRIES = 3;
 const DEFAULT_TICK_MS = 50; // 20 ticks por segundo
@@ -34,7 +35,7 @@ const REST_ERROR_MESSAGES = {
 
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
 
-const INITIAL_META = {
+export const INITIAL_META = {
   score1: 0,
   score2: 0,
   elapsedTime: 0,
@@ -42,7 +43,15 @@ const INITIAL_META = {
   periodNumber: null,
   countdown: null, // { seconds, startedAt } del último periodStart
   goal: null, // { id, scoringClub } del último gol
-  result: null, // { score1, score2 } al terminar
+  result: null, // { score1, score2, penalties } al terminar (penalties es null si no hubo tanda)
+  // Tanda de penales. Cada tick trae el estado completo, así que todo se pisa con el último tick.
+  penaltyScore1: 0,
+  penaltyScore2: 0,
+  penaltyKicks: EMPTY_KICKS, // penales ya ejecutados, en orden
+  penaltyCurrent: null, // { club, kickerId, kickerName, defenderId, defenderName }
+  penaltyCountdownSeconds: null, // cuenta previa de 3 a 1 (null con el penal en juego)
+  penaltyRemainingSeconds: null, // tiempo del penal en curso, de 8 a 0
+  penaltiesBanner: null, // { id } del último evento penaltiesStart (para el cartel)
   pauseReason: null, // 'hydration' | 'halftime' | null (null también si nos perdimos el evento pause)
   pauseRemaining: null, // segundos que faltan, de pauseRemainingSeconds
   pauseCount: 0, // cuántas pausas vio esta conexión; sirve de key para remontar el panel
@@ -102,22 +111,33 @@ export default function useMatchWebSocket(matchId) {
 
       // Intervalo entre ticks (promedio móvil) para interpolar en el canvas.
       if (s.curr) s.intervalMs = clamp(0.8 * s.intervalMs + 0.2 * (now - s.currAt), 30, 250);
-      // Después de un gol el back reubica a todos: se muestra directo, sin deslizar.
+      // Después de un gol (o de un penal) el back reubica a todos: se muestra directo, sin deslizar.
       s.prev = s.snapNext || !s.curr ? tick : s.curr;
-      s.snapNext = tick.event?.type === 'goal';
+      s.snapNext = tick.event?.type === 'goal' || tick.event?.type === 'penaltyKick';
       s.curr = tick;
       s.currAt = now;
 
       // Estado visible. Solo se hace setState si algo cambió.
       const prev = metaRef.current;
+      // Cada tick llega como JSON nuevo: la lista y el penal en curso se comparan por contenido
+      // y se conserva la referencia anterior si no cambiaron (si no, habría un re-render por tick).
+      const kicks = tick.penaltyKicks ?? EMPTY_KICKS;
+      const current = tick.penaltyCurrent ?? null;
       const next = {
         ...prev,
         score1: tick.score1,
         score2: tick.score2,
         elapsedTime: tick.elapsedTime,
         phase: tick.phase,
+        penaltyScore1: tick.penaltyScore1 ?? 0,
+        penaltyScore2: tick.penaltyScore2 ?? 0,
+        penaltyKicks: sameKicks(prev.penaltyKicks, kicks) ? prev.penaltyKicks : kicks,
+        penaltyCurrent: sameCurrent(prev.penaltyCurrent, current) ? prev.penaltyCurrent : current,
+        penaltyCountdownSeconds: tick.penaltyCountdownSeconds ?? null,
+        penaltyRemainingSeconds: tick.penaltyRemainingSeconds ?? null,
       };
       const e = tick.event;
+      if (e?.type === 'penaltiesStart') next.penaltiesBanner = { id: (prev.penaltiesBanner?.id ?? 0) + 1 };
       if (e?.type === 'periodStart') {
         next.periodNumber = e.periodNumber;
         next.countdown = { seconds: e.countdownSeconds, startedAt: Date.now() };

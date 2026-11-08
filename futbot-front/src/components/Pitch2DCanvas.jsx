@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { penaltyPlayerInfo } from '../utils/penalties';
 
 // Coordenadas de cancha (ver AsyncAPI): x 0..100, y 0..60, origen abajo a la izquierda.
 // Arcos en x = 0 (club1) y x = 100 (club2), entre y = 22 e y = 38.
@@ -100,9 +101,12 @@ export default function Pitch2DCanvas({ streamRef, roster }) {
       // Jugadores (las etiquetas van después para quedar siempre arriba de todo).
       const drawn = curr.players.map((p, index) => {
         const pos = interpolate(prevById.get(p.playerId), p.position, alpha);
-        const data = info.players?.[p.playerId];
+        // En la tanda `players` trae solo al pateador y al defensor: el club y el nombre salen
+        // de `penaltyCurrent`, no del orden del tick.
+        const duel = curr.phase === 'penalties' ? penaltyPlayerInfo(p.playerId, curr.penaltyCurrent) : null;
+        const data = info.players?.[p.playerId] ?? (duel ? { name: duel.name } : undefined);
         // Sin datos del roster, se asume el orden del tick: 3 del club 1 y 3 del club 2.
-        const club = data?.club ?? (index < curr.players.length / 2 ? 1 : 2);
+        const club = duel?.club ?? data?.club ?? (index < curr.players.length / 2 ? 1 : 2);
         drawPlayer(ctx, X(pos.x), Y(pos.y), s, club, data?.own);
         return { pos, data, club };
       });
