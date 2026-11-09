@@ -1,5 +1,5 @@
 import api from './api';
-import { createBehaviorMock, getBehaviorByIdMock, getBehaviorsMock } from './behaviorMocks';
+import { createBehaviorMock, getBehaviorByIdMock, getBehaviorsMock, updateBehaviorMock } from './behaviorMocks';
 import { USE_MOCKS } from '../config/mocks';
 
 // El backend responde siempre de a 50 elementos; el cliente no puede cambiarlo.
@@ -54,5 +54,20 @@ export async function createBehavior({ name, code, type }, { signal } = {}) {
   if (USE_MOCKS) return createBehaviorMock({ name, code, type });
 
   const { data } = await api.post('/behaviors', { name, code, type }, { signal });
+  return data;
+}
+
+/**
+ * Edita un behavior (PUT /behaviors/{id}). El tipo no se envía ni se puede cambiar.
+ * Errores: 400 (campos), 401 (sin sesión), 403 (no es del usuario), 404 (no existe),
+ * 409 (duplicateName | codeTooLong | invalidCode con `codeError`).
+ * @param {string|number} id
+ * @param {{ name: string, code: string }} behavior
+ * @returns {Promise<{ id: number, name: string, code: string }>}
+ */
+export async function updateBehavior(id, { name, code }, { signal } = {}) {
+  if (USE_MOCKS) return updateBehaviorMock(id, { name, code });
+
+  const { data } = await api.put(`/behaviors/${encodeURIComponent(id)}`, { name, code }, { signal });
   return data;
 }

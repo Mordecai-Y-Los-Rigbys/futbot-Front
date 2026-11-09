@@ -7,6 +7,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 vi.mock('../services/behaviorService', () => ({
   getBehaviors: vi.fn(),
   createBehavior: vi.fn(),
+  updateBehavior: vi.fn(),
   PAGE_SIZE: 50,
 }));
 vi.mock('../components/BehaviorCodeEditor', () => import('../test/BehaviorCodeEditorMock'));

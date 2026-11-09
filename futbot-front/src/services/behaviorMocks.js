@@ -29,7 +29,7 @@ const buildCode = (name) =>
 // 120 behaviors => 3 páginas de 50, así se prueba la paginación.
 const BEHAVIORS = Array.from({ length: 120 }, (_, i) => {
   const name = `${ROLES[i % ROLES.length]} ${STYLES[Math.floor(i / ROLES.length) % STYLES.length]} #${i + 1}`;
-  return { id: i + 1, name, code: buildCode(name) };
+  return { id: i + 1, name, type: 'playerBehavior', code: buildCode(name) };
 });
 
 const httpError = (status, data = {}) =>
@@ -129,4 +129,46 @@ export async function createBehaviorMock({ name, code, type } = {}) {
   nextBehaviorId += 1;
   BEHAVIORS.push(behavior);
   return { ...behavior };
+}
+
+// PUT /behaviors/{id}. Nombres "trampa": mock-400, mock-401, mock-403, mock-409-nombre,
+// mock-409-codigo, mock-409-largo. Un id inexistente responde 404.
+export async function updateBehaviorMock(id, { name, code } = {}) {
+  await wait(MOCK_DELAY_MS);
+
+  const found = BEHAVIORS.find((b) => b.id === Number(id));
+  if (!found) throw httpError(404);
+
+  const key = (name || '').trim().toLowerCase();
+  if (key === 'mock-400') {
+    throw httpError(400, {
+      code: 'invalidFields',
+      message: 'Revisá los campos marcados.',
+      errors: [{ field: 'name', reason: 'tooLong' }],
+    });
+  }
+  if (key === 'mock-401') throw httpError(401, { code: null, message: 'Sin sesión.' });
+  if (key === 'mock-403') throw httpError(403, { code: null, message: 'No es tuyo.' });
+  if (key === 'mock-409-nombre' || BEHAVIORS.some((b) => b.id !== found.id && b.name.toLowerCase() === key)) {
+    throw httpError(409, { code: 'duplicateName', message: 'Nombre repetido.', codeError: null });
+  }
+  if (key === 'mock-409-largo') {
+    throw httpError(409, { code: 'codeTooLong', message: 'Código demasiado largo.', codeError: null });
+  }
+  if (key === 'mock-409-codigo') {
+    throw httpError(409, {
+      code: 'invalidCode',
+      message: 'El código no respeta la API.',
+      codeError: {
+        rule: 'primitiveAssignmentNotAllowed',
+        line: Math.max(1, String(code).split('\n').length),
+        column: 1,
+        message: 'No se puede asignar a una primitiva del sistema.',
+      },
+    });
+  }
+
+  found.name = name.trim();
+  found.code = code;
+  return { ...found };
 }

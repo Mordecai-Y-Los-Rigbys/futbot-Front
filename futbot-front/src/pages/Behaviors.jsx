@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, Outlet } from 'react-router-dom';
 import axios from 'axios';
 import { getBehaviors, PAGE_SIZE } from '../services/behaviorService';
-import CreateBehaviorDialog from '../components/CreateBehaviorDialog';
+import BehaviorFormDialog from '../components/BehaviorFormDialog';
 import './Behaviors.css';
 
 const DEBOUNCE_MS = 400;
@@ -38,6 +38,7 @@ export default function Behaviors() {
   const [isCreating, setIsCreating] = useState(false);
   const [notice, setNotice] = useState(null);
 
+  const reloadList = () => setReloadKey((key) => key + 1);
   const handleCreated = (behavior) => {
     setIsCreating(false);
     setNotice(`Comportamiento "${behavior.name}" creado correctamente.`);
@@ -201,11 +202,11 @@ export default function Behaviors() {
       )}
 
       {isCreating && (
-        <CreateBehaviorDialog onClose={() => setIsCreating(false)} onCreated={handleCreated} />
+        <BehaviorFormDialog onClose={() => setIsCreating(false)} onSaved={handleCreated} />
       )}
 
       {/* Acá se dibuja el popup de detalle (ruta anidada /behaviors/:id). */}
-      <Outlet />
+      <Outlet context={{ onBehaviorUpdated: reloadList }} />
     </main>
   );
 }

@@ -1,4 +1,4 @@
-/* Reusa overlay/window/header/body/footer de BehaviorDetail.css. */
+/* Usa los estilos de popup de Modal.css (overlay, ventana, header, body, footer). */
 .create-behavior__form {
   display: flex;
   flex-direction: column;
@@ -44,7 +44,7 @@
   gap: 12px;
 }
 
-.behavior-detail__overlay .create-behavior__footer button:disabled {
+.modal__overlay .create-behavior__footer button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
