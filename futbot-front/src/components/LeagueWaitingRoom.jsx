@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import LeaguePasswordForm from './LeaguePasswordForm';
 import useLeagueSocket from '../hooks/useLeagueSocket';
 import './LeagueWaitingRoom.css';
 
@@ -31,6 +32,21 @@ export default function LeagueWaitingRoom({ league, onLeagueChanged }) {
     else if (closeInfo.code === 4404) navigate('/leagues', { replace: true });
     else if (closeInfo.code === 1000 || closeInfo.code === 4409) onLeagueChanged();
   }, [closeInfo, navigate, onLeagueChanged]);
+
+  // 4403 leagueAccessRequired: liga privada sin acceso. Otros 4403 (por ejemplo originNotAllowed)
+  // no son este caso. Se muestra el formulario en lugar de la sala.
+  if (closeInfo?.code === 4403 && closeInfo.reason === 'leagueAccessRequired') {
+    return (
+      <main className="league-lobby">
+        <LeaguePasswordForm
+          leagueId={league.id}
+          leagueName={league.name}
+          onSuccess={retry}
+          onBack={() => navigate('/leagues')}
+        />
+      </main>
+    );
+  }
 
   // Hasta tener el primer mensaje (o un cierre que cambie la pantalla) se muestra la carga.
   const isLeavingView = closeInfo !== null && LEAVING_CLOSE_CODES.includes(closeInfo.code);
