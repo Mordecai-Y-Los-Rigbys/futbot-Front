@@ -8,6 +8,33 @@ const httpError = (status, data) => {
   return err;
 };
 
+// Penales de ejemplo: club1 gana 4 - 3 (el 5.º de club1 se erra y el 5.º de club2 también).
+const MOCK_KICKERS = {
+  club1: [
+    { kickerId: 1, kickerName: 'Messi' },
+    { kickerId: 2, kickerName: 'Di María' },
+    { kickerId: 3, kickerName: 'Dybala' },
+  ],
+  club2: [
+    { kickerId: 4, kickerName: 'Haaland' },
+    { kickerId: 5, kickerName: 'De Bruyne' },
+    { kickerId: 6, kickerName: 'Foden' },
+  ],
+};
+const MOCK_SCORED = { club1: [true, true, true, true, false], club2: [true, false, true, true, false] };
+
+const mockKicks = () =>
+  [1, 2, 3, 4, 5].flatMap((round) =>
+    ['club1', 'club2'].map((club) => ({
+      club,
+      ...MOCK_KICKERS[club][(round - 1) % 3],
+      round,
+      scored: MOCK_SCORED[club][round - 1],
+    })),
+  );
+
+// GET /matches/{id} simulado. Con el id "finished" devuelve un partido terminado por penales
+// (para ver la pantalla final al recargar); con "error500" falla; cualquier otro está en juego.
 export async function createMatchConnectionMock(matchId) {
   await wait(200);
 
@@ -74,7 +101,7 @@ export function createMatchSocketMock() {
 }
 
 // Ids "trampa": 4031 -> 403, 4041 -> 404, 4091 -> 409, 0 -> ambos clubes sin cambios.
-export async function getNextSubstitutionsMock(matchId) {
+export async function getSubstitutionsMock(matchId) {
   await wait(300);
 
   if (matchId === '4031') throw httpError(403, { message: 'El partido no te pertenece.' });
@@ -94,6 +121,20 @@ export async function getMatchMock(matchId) {
   if (matchId === '4031') throw httpError(403, { message: 'El partido no te pertenece.' });
   if (matchId === '4041') throw httpError(404, { message: 'El partido no existe.' });
 
+  // Id "finished": partido terminado por penales (para ver la pantalla final al recargar).
+  if (matchId === 'finished') {
+    return {
+      id: 99,
+      name: 'Final mock',
+      status: 'finished',
+      club1: { id: 10, username: 'scaloni', name: 'La Scaloneta FC', avatar: 1 },
+      club2: { id: 11, username: 'guardiola', name: 'Manchester City', avatar: 4 },
+      scheduledAt: null,
+      createdAt: '2026-10-25T18:00:00Z',
+      result: { score1: 1, score2: 1, penalties: { score1: 4, score2: 3, winner: 'club1', kicks: mockKicks() } },
+    };
+  }
+
   return {
     id: Number(matchId),
     name: 'Amistoso mock',
@@ -105,3 +146,4 @@ export async function getMatchMock(matchId) {
     result: null,
   };
 }
+

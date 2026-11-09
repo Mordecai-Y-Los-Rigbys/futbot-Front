@@ -2,8 +2,11 @@ import { useEffect, useState } from 'react';
 import { getAvatarSrc } from '../utils/avatars';
 import { TEAM_COLORS } from './Pitch2DCanvas';
 import PausePanel from './PausePanel';
+import PenaltyBoard from './PenaltyBoard';
+import { EMPTY_KICKS, shootoutLabel, sideNumber, winnerLabel } from '../utils/penalties';
 
 const GOAL_BANNER_MS = 3000;
+const PENALTIES_BANNER_MS = 3000;
 
 const pad = (n) => String(n).padStart(2, '0');
 const formatClock = (seconds) => `${pad(Math.floor(seconds / 60))}:${pad(Math.floor(seconds % 60))}`;
@@ -28,9 +31,60 @@ function ClubBadge({ club, fallbackName, number }) {
   );
 }
 
-export default function ScoreboardOverlay({ meta, roster, status, onExit, finishedTitle = 'Partido finalizado', exitLabel = 'Volver al inicio' }) {
-  const { score1, score2, elapsedTime, phase, periodNumber, countdown, goal, result, pauseReason, pauseRemaining, pauseCount } = meta;
+// Quién patea y quién defiende en el penal en curso, con su cuenta (previa o de juego).
+function PenaltyDuel({ current, countdown, remaining }) {
+  return (
+    <p className="shootout__duel">
+      <span>
+        Patea: <strong>{current.kickerName}</strong>
+      </span>
+      <span>
+        Defiende: <strong>{current.defenderName}</strong>
+      </span>
+      {countdown === null && remaining !== null && (
+        <span className="shootout__timer" role="timer" aria-label="Tiempo restante del penal">
+          {`${remaining} s`}
+        </span>
+      )}
+    </p>
+  );
+}
+
+// `finishedTitle` y `exitLabel` son opcionales: la pantalla de prueba de comportamientos
+// los usa para mostrar "Prueba terminada" / "Volver a probar". Por defecto, el partido normal.
+export default function ScoreboardOverlay({
+  meta,
+  roster,
+  status,
+  onExit,
+  finishedTitle = 'Partido finalizado',
+  exitLabel = 'Volver al inicio',
+}) {
+  const {
+    score1,
+    score2,
+    elapsedTime,
+    phase,
+    periodNumber,
+    countdown,
+    goal,
+    result,
+    pauseReason,
+    pauseRemaining,
+    pauseCount,
+    penaltyScore1 = 0,
+    penaltyScore2 = 0,
+    penaltyKicks = EMPTY_KICKS,
+    penaltyCurrent = null,
+    penaltyCountdownSeconds = null,
+    penaltyRemainingSeconds = null,
+    penaltiesBanner = null,
+  } = meta;
   const [club1, club2] = roster?.clubs ?? [];
+  const clubs = [club1, club2];
+  // Los clubes se identifican por lado; el nombre sale del Match (GET /matches/{id}).
+  const clubNameOf = (side) => clubs[sideNumber(side) - 1]?.name ?? `Club ${sideNumber(side)}`;
+  const inShootout = phase === 'penalties';
 
   // Segundos de cuenta regresiva que quedan (local, a partir del evento periodStart).
   const [now, setNow] = useState(() => Date.now());
@@ -50,9 +104,26 @@ export default function ScoreboardOverlay({ meta, roster, status, onExit, finish
     return () => clearTimeout(timer);
   }, [goal]);
 
+  // El cartel “Tanda de penales” se muestra unos segundos con cada penaltiesStart.
+  const [visibleBannerId, setVisibleBannerId] = useState(null);
+  useEffect(() => {
+    if (!penaltiesBanner) return undefined;
+    setVisibleBannerId(penaltiesBanner.id);
+    const timer = setTimeout(() => setVisibleBannerId(null), PENALTIES_BANNER_MS);
+    return () => clearTimeout(timer);
+  }, [penaltiesBanner]);
+
   // Reloj: se muestra tal cual lo manda el back (`elapsedTime`, en segundos).
   // TODO: confirmar con el back si es el tiempo transcurrido o el restante del cuarto.
-  const clock = phase ? `${periodNumber ? `${periodNumber}.º cuarto · ` : ''}${formatClock(elapsedTime)}` : '--:--';
+  // Durante la tanda el reloj queda congelado: se muestra “Penales” en su lugar.
+  // Sin `elapsedTime` (partido ya terminado, armado desde GET /matches/{id}) se muestra “Final”.
+  let clock = '--:--';
+  if (inShootout) clock = 'Penales';
+  else if (phase && elapsedTime == null) clock = 'Final';
+  else if (phase) clock = `${periodNumber ? `${periodNumber}.º cuarto · ` : ''}${formatClock(elapsedTime)}`;
+
+  const finalResult = result ?? { score1, score2 };
+  const penalties = finalResult.penalties ?? null;
 
   const waiting = phase === null && status === 'open';
   const connecting = phase === null && status !== 'open' && status !== 'closed';
@@ -73,6 +144,22 @@ export default function ScoreboardOverlay({ meta, roster, status, onExit, finish
         </div>
         <ClubBadge club={club2} fallbackName="Club 2" number={2} />
       </header>
+
+      {inShootout && (
+        <section className="shootout" aria-label="Tanda de penales">
+          <p className="shootout__score" aria-live="polite">
+            {`Penales ${penaltyScore1} - ${penaltyScore2}`}
+          </p>
+          <PenaltyBoard kicks={penaltyKicks} clubs={clubs} />
+          {penaltyCurrent && (
+            <PenaltyDuel
+              current={penaltyCurrent}
+              countdown={penaltyCountdownSeconds}
+              remaining={penaltyRemainingSeconds}
+            />
+          )}
+        </section>
+      )}
 
       <div className="overlay__stage">
         {connecting && <p className="banner">{status === 'reconnecting' ? 'Reconectando…' : 'Conectando con el partido…'}</p>}
@@ -96,6 +183,21 @@ export default function ScoreboardOverlay({ meta, roster, status, onExit, finish
           <PausePanel key={pauseCount} reason={pauseReason} remainingSeconds={pauseRemaining} roster={roster} />
         )}
 
+        {inShootout && penaltyCountdownSeconds !== null && (
+          <div className="countdown" role="timer" aria-label="Cuenta previa del penal">
+            <span className="countdown__label">Empieza el penal</span>
+            <span className="countdown__number" key={penaltyCountdownSeconds}>
+              {penaltyCountdownSeconds}
+            </span>
+          </div>
+        )}
+
+        {visibleBannerId !== null && (
+          <div className="shootout-banner" key={visibleBannerId} role="status">
+            <span className="shootout-banner__word">Tanda de penales</span>
+          </div>
+        )}
+
         {visibleGoalId !== null && goal && (
           <div className="goal" key={visibleGoalId} role="status">
             <span className="goal__word">¡GOL!</span>
@@ -107,8 +209,11 @@ export default function ScoreboardOverlay({ meta, roster, status, onExit, finish
           <div className="final" role="status">
             <span className="final__title">{finishedTitle}</span>
             <span className="final__score">
-              {(result ?? { score1, score2 }).score1} : {(result ?? { score1, score2 }).score2}
+              {finalResult.score1} : {finalResult.score2}
+              {penalties && ` (${shootoutLabel(penalties)})`}
             </span>
+            {penalties && <span className="final__winner">{winnerLabel(penalties, clubNameOf(penalties.winner))}</span>}
+            {penalties && <PenaltyBoard kicks={penalties.kicks} clubs={clubs} />}
             <button type="button" onClick={onExit}>{exitLabel}</button>
           </div>
         )}

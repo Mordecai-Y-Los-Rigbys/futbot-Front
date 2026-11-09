@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { getNextSubstitutions } from '../services/matchService.js';
+import { getSubstitutions } from '../services/matchService.js';
 import './PausePanel.css';
 
 const PAUSE_TITLES = {
@@ -42,7 +42,7 @@ export default function PausePanel({ reason, remainingSeconds, roster }) {
 
   useEffect(() => {
     const controller = new AbortController();
-    getNextSubstitutions(id, { signal: controller.signal })
+    getSubstitutions(id, { signal: controller.signal })
       .then((data) => {
         if (!controller.signal.aborted) setSubstitutions(data);
       })
