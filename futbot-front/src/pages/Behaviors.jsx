@@ -39,6 +39,11 @@ export default function Behaviors() {
   const [notice, setNotice] = useState(null);
 
   const reloadList = () => setReloadKey((key) => key + 1);
+  // El detalle avisa que el comportamiento se eliminó o ya no está disponible.
+  const handleBehaviorRemoved = (message) => {
+    setNotice(message);
+    reloadList();
+  };
   const handleCreated = (behavior) => {
     setIsCreating(false);
     setNotice(`Comportamiento "${behavior.name}" creado correctamente.`);
@@ -206,7 +211,7 @@ export default function Behaviors() {
       )}
 
       {/* Acá se dibuja el popup de detalle (ruta anidada /behaviors/:id). */}
-      <Outlet context={{ onBehaviorUpdated: reloadList }} />
+      <Outlet context={{ onBehaviorUpdated: reloadList, onBehaviorRemoved: handleBehaviorRemoved }} />
     </main>
   );
 }

@@ -1,5 +1,11 @@
 import api from './api';
-import { createBehaviorMock, getBehaviorByIdMock, getBehaviorsMock, updateBehaviorMock } from './behaviorMocks';
+import {
+  createBehaviorMock,
+  deleteBehaviorMock,
+  getBehaviorByIdMock,
+  getBehaviorsMock,
+  updateBehaviorMock,
+} from './behaviorMocks';
 import { USE_MOCKS } from '../config/mocks';
 
 // El backend responde siempre de a 50 elementos; el cliente no puede cambiarlo.
@@ -30,12 +36,12 @@ export async function getBehaviors(name, page = 1, { signal, type } = {}) {
 }
 
 /**
- * Obtiene nombre y código de un behavior (GET /behaviors/{id}).
+ * Obtiene nombre, tipo, código y `deletable` de un behavior (GET /behaviors/{id}).
  * La cookie de sesión viaja sola porque `api` usa `withCredentials: true`.
  * Errores posibles: 401 (sin sesión), 403 (no es del usuario), 404 (no existe o id inválido).
  * @param {string|number} id  Id del behavior (normalmente el param de la URL).
  * @param {{ signal?: AbortSignal }} [options]  Permite cancelar la request.
- * @returns {Promise<{ id: number, name: string, code: string }>}
+ * @returns {Promise<{ id: number, name: string, type: string, code: string, deletable: boolean }>}
  */
 export async function getBehaviorById(id, { signal } = {}) {
   if (USE_MOCKS) return getBehaviorByIdMock(id, { signal });
@@ -70,4 +76,18 @@ export async function updateBehavior(id, { name, code }, { signal } = {}) {
 
   const { data } = await api.put(`/behaviors/${encodeURIComponent(id)}`, { name, code }, { signal });
   return data;
+}
+
+/**
+ * Elimina un behavior (DELETE /behaviors/{id}). Responde 204 sin body.
+ * Errores: 401 (sin sesión), 403 (no es del usuario), 404 (no existe o id inválido),
+ * 409 (`behaviorInLeagueTeam` | `behaviorInMatch`: el behavior está en uso, ver `deletable`).
+ * @param {string|number} id
+ * @param {{ signal?: AbortSignal }} [options]
+ * @returns {Promise<void>}
+ */
+export async function deleteBehavior(id, { signal } = {}) {
+  if (USE_MOCKS) return deleteBehaviorMock(id);
+
+  await api.delete(`/behaviors/${encodeURIComponent(id)}`, { signal });
 }
