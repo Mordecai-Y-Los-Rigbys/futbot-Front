@@ -7,16 +7,24 @@ import LeagueWaitingRoom from './LeagueWaitingRoom';
 import useLeagueSocket from '../hooks/useLeagueSocket';
 import {  unlockLeague,
   leaveLeague,
+  joinLeague,
 } from '../services/leagueService';
+import { getPlayers } from '../services/playerService';
+import { getBehaviors } from '../services/behaviorService';
+
 
 // Servicios y hook falsos: no hay red ni socket de verdad. El hook tiene sus propios tests;
 // acá se le dice qué devolver para ver cómo reacciona la pantalla a cada mensaje y cierre.
 vi.mock('../hooks/useLeagueSocket');
 vi.mock('../services/leagueService');
+vi.mock('../services/playerService');
+vi.mock('../services/behaviorService');
 
 const CREATOR = { id: 2, username: 'pepe', name: 'Boca Juniors', avatar: 1 };
 const USER = { id: 1, username: 'santi', clubName: 'FC Santi' };
 const ME = { id: 1, username: 'santi', name: 'FC Santi', avatar: 2 };
+const PLAYERS = [1, 2, 3, 4, 5, 6].map((id) => ({ id, name: `Jugador ${id}` }));
+const PLAYER_BEHAVIORS = [{ id: 10, name: 'Atacar', type: 'playerBehavior' }];
 
 const makeLeague = (overrides = {}) => ({
   id: 5,
@@ -70,9 +78,21 @@ function renderRoom(league = makeLeague()) {
 // Los participantes viven en su propia sección (el creador también aparece en el encabezado).
 const seccionParticipantes = () => screen.queryByRole('region', { name: 'Participantes' });
 
+async function completarEquipo() {
+  const jugadores = await screen.findAllByLabelText('Jugador');
+  const comportamientos = screen.getAllByLabelText('Comportamiento');
+  for (let i = 0; i < 6; i += 1) {
+    await userEvent.selectOptions(jugadores[i], String(i + 1));
+    await userEvent.selectOptions(comportamientos[i], '10');
+  }
+}
+
 describe('LeagueWaitingRoom', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    getPlayers.mockResolvedValue(PLAYERS);
+    getBehaviors.mockResolvedValue({ items: PLAYER_BEHAVIORS, page: 1, pageSize: 50, total: 1 });
+
   });
 
   describe('lobby', () => {
@@ -390,6 +410,67 @@ describe('LeagueWaitingRoom', () => {
 
       expect(await screen.findByText(/no pudimos abandonar la liga/i)).toBeInTheDocument();
       expect(screen.getByRole('heading', { name: 'Liga del barrio' })).toBeInTheDocument();
+    });
+  });
+
+  describe('unirse', () => {
+    it('ofrece unirse si no estás en la lista, y el modal se abre', async () => {
+      canal([CREATOR]);
+
+      renderRoom();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: /unirse a la liga/i }));
+
+      expect(await screen.findByRole('dialog', { name: /unirse a liga del barrio/i })).toBeInTheDocument();
+    });
+
+    it('con el cupo lleno esconde el botón de unirse y avisa que la liga está llena', () => {
+      const OTRO = { id: 3, username: 'luli', name: 'River', avatar: 1 };
+      canal([CREATOR, OTRO]);
+
+      renderRoom(makeLeague({ maxParticipants: 2 }));
+
+      expect(screen.getByText('La liga está llena.')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /unirse a la liga/i })).not.toBeInTheDocument();
+    });
+
+    it('si ya participás no se ofrece unirse', () => {
+      canal([CREATOR, ME]);
+
+      renderRoom();
+
+      expect(screen.queryByRole('button', { name: /unirse a la liga/i })).not.toBeInTheDocument();
+    });
+
+    it('en una liga privada el modal pide la contraseña', async () => {
+      canal([CREATOR]);
+
+      renderRoom(makeLeague({ private: true }));
+      await userEvent.click(screen.getByRole('button', { name: /unirse a la liga/i }));
+
+      const modal = await screen.findByRole('dialog');
+      expect(await within(modal).findByLabelText(/contraseña de la liga/i)).toBeInTheDocument();
+    });
+
+    it('al inscribirse cierra el modal, avisa y la lista nueva del canal refleja al club como participante', async () => {
+      canal([CREATOR]);
+      joinLeague.mockResolvedValue(undefined);
+
+      const { rerender } = renderRoom();
+      await userEvent.click(screen.getByRole('button', { name: /unirse a la liga/i }));
+      await completarEquipo();
+      await userEvent.click(screen.getByRole('button', { name: /confirmar inscripción/i }));
+
+      expect(await screen.findByText('¡Te uniste a la liga!')).toBeInTheDocument();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(joinLeague).toHaveBeenCalledTimes(1);
+
+      // El canal manda la lista con el club inscripto: no hace falta recargar nada.
+      canal([CREATOR, ME]);
+      rerender();
+      expect(within(seccionParticipantes()).getByText(/@santi/)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /abandonar liga/i })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /unirse a la liga/i })).not.toBeInTheDocument();
     });
   });
 

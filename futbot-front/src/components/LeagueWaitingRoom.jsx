@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import JoinLeagueModal from './JoinLeagueModal';
 import LeaguePasswordForm from './LeaguePasswordForm';
 import Modal from './Modal';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -43,6 +44,8 @@ export default function LeagueWaitingRoom({ league, onLeagueChanged }) {
   const [isLeaving, setIsLeaving] = useState(false);
   const [leaveError, setLeaveError] = useState(null);
   const [hasLeft, setHasLeft] = useState(false);
+  const [isJoinOpen, setIsJoinOpen] = useState(false);
+  const [notice, setNotice] = useState(null);
 
   // Cierres definitivos del canal que sacan al usuario de esta vista.
   useEffect(() => {
@@ -84,6 +87,12 @@ export default function LeagueWaitingRoom({ league, onLeagueChanged }) {
     }
   };
 
+  // No hace falta volver a pedir nada: el canal manda la lista nueva con el club ya inscripto.
+  const handleJoined = () => {
+    setIsJoinOpen(false);
+    setNotice('¡Te uniste a la liga!');
+  };
+
   // 4403 leagueAccessRequired: liga privada sin acceso. Otros 4403 (por ejemplo originNotAllowed)
   // no son este caso. Se muestra el formulario en lugar de la sala.
   if (closeInfo?.code === 4403 && closeInfo.reason === 'leagueAccessRequired') {
@@ -113,6 +122,8 @@ export default function LeagueWaitingRoom({ league, onLeagueChanged }) {
   const isCreator = league.creator.id === user.id;
   const isParticipant = participants.some((participant) => participant.id === user.id);
   const canLeave = isParticipant && !isCreator && !hasLeft;
+  const isFull = spotsLeft === 0;
+  const canJoin = !isParticipant && !isFull;
   
   return (
     <main className="league-lobby">
@@ -123,7 +134,7 @@ export default function LeagueWaitingRoom({ league, onLeagueChanged }) {
         </div>
         <p>{`Creada por ${league.creator.name} · @${league.creator.username}`}</p>
         <ul className="league-lobby__facts">
-          <li>{league.status}</li>
+          <li>{STATUS_LABELS[league.status] || league.status}</li>
           <li>{spotsLeft === 0 ? 'Cupo completo' : `Faltan ${spotsLeft} para completar el cupo`}</li>
           <li>{`Mínimo ${league.minParticipants}`}</li>
         </ul>
@@ -137,9 +148,9 @@ export default function LeagueWaitingRoom({ league, onLeagueChanged }) {
         </div>
       )}
 
+      {notice && <p role="status">{notice}</p>}
       {hasLeft && <p role="status">Abandonaste la liga. Te llevamos al listado…</p>}
       {leaveError && <p role="alert">{leaveError}</p>}
-
 
       <section aria-label="Participantes">
         <h2>Participantes</h2>
@@ -152,8 +163,9 @@ export default function LeagueWaitingRoom({ league, onLeagueChanged }) {
           ))}
         </ul>
       </section>
-      
+  
       {isCreator && <p>Sos el creador de la liga: no podés abandonarla.</p>}
+      {!isParticipant && isFull && <p>La liga está llena.</p>}
 
       <div className="league-lobby__actions">
                 {canLeave && (
@@ -163,6 +175,15 @@ export default function LeagueWaitingRoom({ league, onLeagueChanged }) {
             onClick={() => setIsLeaveOpen(true)}
           >
             Abandonar liga
+          </button>
+        )}
+        {canJoin && (
+          <button
+            type="button"
+            className="league-lobby__primary"
+            onClick={() => setIsJoinOpen(true)}
+          >
+            Unirse a la liga
           </button>
         )}
 
@@ -192,6 +213,15 @@ export default function LeagueWaitingRoom({ league, onLeagueChanged }) {
           </div>
         </Modal>
       )}
+      
+      {isJoinOpen && (
+        <JoinLeagueModal
+          league={league}
+          onClose={() => setIsJoinOpen(false)}
+          onJoined={handleJoined}
+        />
+      )}
+
 
     </main>
   );
