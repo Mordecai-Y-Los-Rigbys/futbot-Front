@@ -283,3 +283,20 @@ export function createLeagueSocketMock(id) {
 
   return socket;
 }
+// Avisa a los sockets simulados que cambió la lista de participantes de una liga.
+const emitParticipants = (league) => socketListeners.forEach((listener) => listener(league));
+
+// DELETE /leagues/{id}/participants/me (no revoca el desbloqueo, como el servidor)
+export async function leaveLeagueMock(id) {
+  await wait(MOCK_DELAY_MS);
+  const league = findLeague(id);
+  const participants = participantsOf(league);
+
+  if (league.status !== 'preparation') throw codedError(409, 'notInPreparation');
+  if (league.creator.id === MOCK_CURRENT_USER.id) throw codedError(409, 'isCreator');
+
+  const index = participants.findIndex((participant) => participant.id === MOCK_CURRENT_USER.id);
+  if (index === -1) throw codedError(409, 'notParticipating');
+  participants.splice(index, 1);
+  emitParticipants(league);
+}

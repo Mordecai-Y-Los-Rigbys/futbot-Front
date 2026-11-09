@@ -2,9 +2,11 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { AuthContext } from '../context/AuthContext.jsx';
 import LeagueWaitingRoom from './LeagueWaitingRoom';
 import useLeagueSocket from '../hooks/useLeagueSocket';
 import {  unlockLeague,
+  leaveLeague,
 } from '../services/leagueService';
 
 // Servicios y hook falsos: no hay red ni socket de verdad. El hook tiene sus propios tests;
@@ -13,6 +15,7 @@ vi.mock('../hooks/useLeagueSocket');
 vi.mock('../services/leagueService');
 
 const CREATOR = { id: 2, username: 'pepe', name: 'Boca Juniors', avatar: 1 };
+const USER = { id: 1, username: 'santi', clubName: 'FC Santi' };
 const ME = { id: 1, username: 'santi', name: 'FC Santi', avatar: 2 };
 
 const makeLeague = (overrides = {}) => ({
@@ -47,16 +50,18 @@ const canal = (participants, extra = {}) =>
 function renderRoom(league = makeLeague()) {
   const onLeagueChanged = vi.fn();
   const tree = () => (
-    <MemoryRouter initialEntries={['/leagues/5']}>
-      <Routes>
-        <Route
-          path="/leagues/:id"
-          element={<LeagueWaitingRoom league={league} onLeagueChanged={onLeagueChanged} />}
-        />
-        <Route path="/leagues" element={<p>Listado de ligas</p>} />
-        <Route path="/login" element={<p>Pantalla de login</p>} />
-      </Routes>
-    </MemoryRouter>
+    <AuthContext.Provider value={{ user: USER }}>
+      <MemoryRouter initialEntries={['/leagues/5']}>
+        <Routes>
+          <Route
+            path="/leagues/:id"
+            element={<LeagueWaitingRoom league={league} onLeagueChanged={onLeagueChanged} />}
+          />
+          <Route path="/leagues" element={<p>Listado de ligas</p>} />
+          <Route path="/login" element={<p>Pantalla de login</p>} />
+        </Routes>
+      </MemoryRouter>
+    </AuthContext.Provider>
   );
   const view = render(tree());
   return { onLeagueChanged, rerender: () => view.rerender(tree()) };
@@ -293,3 +298,98 @@ describe('LeagueWaitingRoom', () => {
   });
 
 });
+  describe('abandonar', () => {
+    it('el botón se ve solo para quien participa y no es el creador', () => {
+      canal([CREATOR, ME]);
+
+      renderRoom();
+
+      expect(screen.getByRole('button', { name: /abandonar liga/i })).toBeInTheDocument();
+    });
+
+    it('el creador no ve el botón para abandonar', () => {
+      canal([ME]);
+
+      renderRoom(makeLeague({ creator: ME }));
+
+      expect(screen.getByText(/sos el creador de la liga/i)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /abandonar liga/i })).not.toBeInTheDocument();
+    });
+
+    it('quien no está en la lista no ve el botón para abandonar', () => {
+      canal([CREATOR]);
+
+      renderRoom();
+
+      expect(screen.queryByRole('button', { name: /abandonar liga/i })).not.toBeInTheDocument();
+    });
+
+    it('al hacer clic abre un modal de confirmación y todavía no llama a la API', async () => {
+      canal([CREATOR, ME]);
+
+      renderRoom();
+      await userEvent.click(screen.getByRole('button', { name: /abandonar liga/i }));
+
+      const modal = screen.getByRole('dialog', { name: /abandonar liga/i });
+      expect(within(modal).getByText('¿Estás seguro que deseas abandonar esta liga?')).toBeInTheDocument();
+      expect(leaveLeague).not.toHaveBeenCalled();
+    });
+
+    it('cancelar cierra el modal y no abandona', async () => {
+      canal([CREATOR, ME]);
+
+      renderRoom();
+      await userEvent.click(screen.getByRole('button', { name: /abandonar liga/i }));
+      await userEvent.click(screen.getByRole('button', { name: /cancelar/i }));
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(leaveLeague).not.toHaveBeenCalled();
+    });
+
+    it('al confirmar llama a la API con carga en el botón, avisa y vuelve al listado', async () => {
+      canal([CREATOR, ME]);
+      let terminar;
+      leaveLeague.mockReturnValue(new Promise((resolve) => { terminar = resolve; }));
+
+      renderRoom();
+      await userEvent.click(screen.getByRole('button', { name: /abandonar liga/i }));
+      await userEvent.click(screen.getByRole('button', { name: /sí, abandonar/i }));
+
+      // Mientras espera: botón deshabilitado con carga, para evitar múltiples clics.
+      const botonCargando = await screen.findByRole('button', { name: /abandonando/i });
+      expect(botonCargando).toBeDisabled();
+      expect(leaveLeague).toHaveBeenCalledWith(5);
+
+      terminar();
+
+      expect(await screen.findByText(/abandonaste la liga/i)).toBeInTheDocument();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(await screen.findByText('Listado de ligas', {}, { timeout: 3000 })).toBeInTheDocument();
+      expect(leaveLeague).toHaveBeenCalledTimes(1);
+    });
+
+    it('si el servidor responde 409, muestra el motivo y cierra el modal', async () => {
+      canal([CREATOR, ME]);
+      leaveLeague.mockRejectedValue(httpError(409, 'notInPreparation'));
+
+      renderRoom();
+      await userEvent.click(screen.getByRole('button', { name: /abandonar liga/i }));
+      await userEvent.click(screen.getByRole('button', { name: /sí, abandonar/i }));
+
+      expect(await screen.findByText(/ya no está en preparación: no se puede abandonar/i)).toBeInTheDocument();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('si falla la conexión, muestra un mensaje sin romper la pantalla', async () => {
+      canal([CREATOR, ME]);
+      leaveLeague.mockRejectedValue(new Error('Network Error'));
+
+      renderRoom();
+      await userEvent.click(screen.getByRole('button', { name: /abandonar liga/i }));
+      await userEvent.click(screen.getByRole('button', { name: /sí, abandonar/i }));
+
+      expect(await screen.findByText(/no pudimos abandonar la liga/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Liga del barrio' })).toBeInTheDocument();
+    });
+  });
+
