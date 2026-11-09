@@ -35,6 +35,8 @@ const LEAGUES = Array.from({ length: 5 }, (_, i) => {
     participantsCount,
     maxParticipants,
     private: i % 3 === 0,
+    // Alterna modos para ver la etiqueta "Modo penales" en el listado.
+    allowDraws: i % 2 === 0,
     createdAt: new Date(Date.UTC(2026, 0, 1 + i)).toISOString(),
   };
 });
@@ -113,6 +115,8 @@ export async function createLeagueMock(leagueData) {
     participantsCount: 1,
     maxParticipants: leagueData.maxParticipants,
     private: leagueData.private,
+    // Igual que la API: si falta, se toma true.
+    allowDraws: leagueData.allowDraws ?? true,
     createdAt: new Date().toISOString(),
   };
   nextLeagueId += 1;
