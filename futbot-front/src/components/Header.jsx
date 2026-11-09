@@ -8,6 +8,7 @@ const LINKS = [
   { to: '/friendlies', label: 'Amistosos' },
   { to: '/players', label: 'Mis jugadores' },
   { to: '/behaviors', label: 'Mis comportamientos' },
+  { to: '/ranking', label: 'Ranking Global' },
 ];
 
 function Header() {
