@@ -109,12 +109,12 @@
 .ranking__avatar {
   width: 32px;
   height: 32px;
-  border-radius: 50%;
-  object-fit: cover;
+  object-fit: contain;
   flex: none;
 }
 
 .ranking__avatar--fallback {
+  border-radius: 50%;
   display: grid;
   place-items: center;
   font-weight: 700;

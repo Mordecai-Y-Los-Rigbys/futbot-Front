@@ -1,7 +1,7 @@
 import api from './api';
-import { getPlayersMock } from './playerMocks';
+import { createPlayerMock, getPlayersMock } from './playerMocks';
+import { USE_MOCKS } from '../config/mocks';
 
-const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true' && import.meta.env.MODE !== 'test';
 
 export const getPlayers = async (page = 1, options = {}) => {
   if (USE_MOCKS) {

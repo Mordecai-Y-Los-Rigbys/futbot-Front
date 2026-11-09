@@ -8,7 +8,6 @@ import {
 } from './matchMocks';
 
 // Nunca se activa en los tests (MODE === 'test'): ahí se mockea este módulo.
-const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true' && import.meta.env.MODE !== 'test';
 
 /**
  * Pide el tokenWs para abrir el WebSocket del partido (POST /matches/{id}/connections).

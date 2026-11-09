@@ -29,6 +29,21 @@ const httpError = (status) =>
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// GET /users/me
+// En modo mock siempre hay una "sesión offline" vigente: devuelve el usuario de prueba
+// para que RequireAuth deje pasar y se pueda navegar sin pasar por el login.
+// (Se puede seguir probando el formulario entrando directo a /login.)
+export async function getCurrentUserMock() {
+  await wait(MOCK_DELAY_MS);
+  return { ...MOCK_USER };
+}
+
+// POST /auth/register
+export async function registerMock({ username, clubName } = {}) {
+  await wait(MOCK_DELAY_MS);
+  return { id: 2, username: username ?? 'nuevo', clubName: clubName ?? 'Nuevo FC' };
+}
+
 // POST /auth/log-in
 export async function loginMock({ email, password } = {}) {
   await wait(MOCK_DELAY_MS);
