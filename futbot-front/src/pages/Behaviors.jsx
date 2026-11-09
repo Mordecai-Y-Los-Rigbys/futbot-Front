@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, Outlet } from 'react-router-dom';
 import axios from 'axios';
 import { getBehaviors, PAGE_SIZE } from '../services/behaviorService';
+import CreateBehaviorDialog from '../components/CreateBehaviorDialog';
 import './Behaviors.css';
 
 const DEBOUNCE_MS = 400;
@@ -32,6 +33,16 @@ export default function Behaviors() {
   // Se incrementa para forzar una nueva llamada aunque nada más haya cambiado
   // (Enter con el mismo texto, o botón "Reintentar").
   const [reloadKey, setReloadKey] = useState(0);
+
+  // Formulario de creación y aviso de éxito.
+  const [isCreating, setIsCreating] = useState(false);
+  const [notice, setNotice] = useState(null);
+
+  const handleCreated = (behavior) => {
+    setIsCreating(false);
+    setNotice(`Comportamiento "${behavior.name}" creado correctamente.`);
+    setReloadKey((key) => key + 1); // el listado se vuelve a pedir
+  };
 
   // Debounce: cada tecla reinicia el temporizador (el cleanup lo cancela).
   useEffect(() => {
@@ -108,7 +119,19 @@ export default function Behaviors() {
 
   return (
     <main className="behaviors">
-      <h1>Comportamientos</h1>
+      <header className="behaviors__header">
+        <h1>Comportamientos</h1>
+        <button type="button" onClick={() => setIsCreating(true)}>
+          Crear
+        </button>
+      </header>
+
+      {notice && (
+        <div className="behaviors__notice" role="status">
+          <span>{notice}</span>
+          <button type="button" aria-label="Cerrar aviso" onClick={() => setNotice(null)}>×</button>
+        </div>
+      )}
 
       <div className="behaviors__search">
         <label htmlFor="behavior-search">Buscar por nombre</label>
@@ -175,6 +198,10 @@ export default function Behaviors() {
             Siguiente
           </button>
         </nav>
+      )}
+
+      {isCreating && (
+        <CreateBehaviorDialog onClose={() => setIsCreating(false)} onCreated={handleCreated} />
       )}
 
       {/* Acá se dibuja el popup de detalle (ruta anidada /behaviors/:id). */}
