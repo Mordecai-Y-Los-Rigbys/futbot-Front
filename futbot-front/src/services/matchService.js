@@ -42,14 +42,23 @@ export async function createMatchConnection(matchId) {
 }
 
 /**
- * Obtiene los titulares del equipo del usuario en el partido.
- * Contrato provisional: { starters: { playerId, playerName, role }[] }.
- * @returns {Promise<{ starters: { playerId: number, playerName: string, role: string }[] }>}
+ * Primera sustitución de cada equipo (GET /matches/{id}/substitutions).
+ * Solo la pueden pedir los dos jugadores del partido y solo con el partido en juego.
+ * Errores posibles: 401 (sin sesión), 403 (no juega), 404 (no existe), 409 (matchNotStarted).
+ * @returns {Promise<{ club1: Substitution|null, club2: Substitution|null }>}
+ *   donde Substitution = { starterName, substituteName } (sale / entra).
  */
-export async function getMatchTeam(matchId, { signal } = {}) {
-  if (USE_MOCKS) return getMatchTeamMock(matchId);
+export async function getSubstitutions(matchId, { signal } = {}) {
+  if (USE_MOCKS) return getSubstitutionsMock(matchId, { signal });
 
-  const { data } = await api.get(`/matches/${encodeURIComponent(matchId)}/team`, { signal });
+  const { data } = await api.get(`/matches/${encodeURIComponent(matchId)}/substitutions`, { signal });
+  return data;
+}
+
+export async function getMatch(matchId, { signal } = {}) {
+  if (USE_MOCKS) return getMatchMock(matchId, { signal });
+
+  const { data } = await api.get(`/matches/${encodeURIComponent(matchId)}`, { signal });
   return data;
 }
 
