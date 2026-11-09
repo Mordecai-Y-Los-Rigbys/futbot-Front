@@ -15,6 +15,8 @@ const CLOSE_MESSAGES = {
   matchCancelled: 'El partido fue cancelado.',
   tooManyConnections: 'Error de conexión: ya tenés demasiadas pestañas abiertas con este partido.',
   waitExpired: 'Nadie se unió a tu amistoso en 15 minutos y el partido fue cancelado.',
+  leagueAccessRequired: 'Esta liga es privada. Desbloqueala con la contraseña para ver el partido.',
+  notAPlayerInMatch: 'Este amistoso no se puede ver: solo lo ven sus dos jugadores.',
 };
 
 // Respaldo por código cuando el cierre no trae un `reason` conocido.
@@ -218,6 +220,11 @@ export default function useMatchWebSocket(matchId) {
       } catch (err) {
         if (disposed) return;
         const httpStatus = err.response?.status;
+        const code = err.response?.data?.code;
+        if (httpStatus === 403 && code === 'leagueAccessRequired') {
+          fail(CLOSE_MESSAGES.leagueAccessRequired);
+          return;
+        }
         const message = REST_ERROR_MESSAGES[httpStatus];
         if (message) fail(message, httpStatus === 401 ? '/login' : '/');
         else scheduleRetry(); // sin respuesta o 5xx

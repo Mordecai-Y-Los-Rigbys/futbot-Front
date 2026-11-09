@@ -19,21 +19,21 @@ const STYLES = ['agresivo', 'pasivo', 'equilibrado', 'veloz', 'paciente', 'presi
 
 const buildCode = (name) =>
   [
-    `// ${name}`,
-    '  if (player.hasBall) {',
-    '    return match.canShoot(player) ? shoot() : pass(nearestMate(player));',
-    '  }',
-    '  return moveTo(ball.position);',
+    `# ${name}`,
+    'if i_have_ball():',
+    '    kick_to(opponent_goal[0], opponent_goal[1])',
+    'else:',
+    '    go_to(ball_position()[0], ball_position()[1])',
   ].join('\n');
 
 // 120 behaviors => 3 páginas de 50, así se prueba la paginación.
 const BEHAVIORS = Array.from({ length: 120 }, (_, i) => {
   const name = `${ROLES[i % ROLES.length]} ${STYLES[Math.floor(i / ROLES.length) % STYLES.length]} #${i + 1}`;
-  return { id: i + 1, name, code: buildCode(name) };
+  return { id: i + 1, name, type: 'playerBehavior', code: buildCode(name) };
 });
 
-const httpError = (status) =>
-  Object.assign(new Error(`HTTP ${status} (mock)`), { response: { status } });
+const httpError = (status, data = {}) =>
+  Object.assign(new Error(`HTTP ${status} (mock)`), { response: { status, data } });
 
 // Espera `ms`, pero se corta con un error de cancelación si se aborta el signal
 // (igual que haría axios), para que el AbortController de las pantallas funcione.
@@ -87,5 +87,88 @@ export async function getBehaviorByIdMock(id, { signal } = {}) {
   const found = BEHAVIORS.find((b) => b.id === numericId);
   if (!found) throw httpError(404);
 
+  return { ...found };
+}
+
+let nextBehaviorId = BEHAVIORS.length + 1;
+
+// POST /behaviors. Nombres "trampa" para probar cada error desde el formulario:
+//   mock-400, mock-401, mock-409-nombre, mock-409-codigo, mock-409-largo
+export async function createBehaviorMock({ name, code, type } = {}) {
+  await wait(MOCK_DELAY_MS);
+
+  const key = (name || '').trim().toLowerCase();
+  if (key === 'mock-400') {
+    throw httpError(400, {
+      code: 'invalidFields',
+      message: 'Revisá los campos marcados.',
+      errors: [{ field: 'name', reason: 'tooLong' }],
+    });
+  }
+  if (key === 'mock-401') throw httpError(401, { code: null, message: 'Sin sesión.' });
+  if (key === 'mock-409-nombre' || BEHAVIORS.some((b) => b.name.toLowerCase() === key)) {
+    throw httpError(409, { code: 'duplicateName', message: 'Nombre repetido.', codeError: null });
+  }
+  if (key === 'mock-409-largo') {
+    throw httpError(409, { code: 'codeTooLong', message: 'Código demasiado largo.', codeError: null });
+  }
+  if (key === 'mock-409-codigo') {
+    throw httpError(409, {
+      code: 'invalidCode',
+      message: 'El código no respeta la API.',
+      codeError: {
+        rule: 'primitiveAssignmentNotAllowed',
+        line: Math.max(1, String(code).split('\n').length),
+        column: 1,
+        message: 'No se puede asignar a una primitiva del sistema.',
+      },
+    });
+  }
+
+  const behavior = { id: nextBehaviorId, name: name.trim(), type, code };
+  nextBehaviorId += 1;
+  BEHAVIORS.push(behavior);
+  return { ...behavior };
+}
+
+// PUT /behaviors/{id}. Nombres "trampa": mock-400, mock-401, mock-403, mock-409-nombre,
+// mock-409-codigo, mock-409-largo. Un id inexistente responde 404.
+export async function updateBehaviorMock(id, { name, code } = {}) {
+  await wait(MOCK_DELAY_MS);
+
+  const found = BEHAVIORS.find((b) => b.id === Number(id));
+  if (!found) throw httpError(404);
+
+  const key = (name || '').trim().toLowerCase();
+  if (key === 'mock-400') {
+    throw httpError(400, {
+      code: 'invalidFields',
+      message: 'Revisá los campos marcados.',
+      errors: [{ field: 'name', reason: 'tooLong' }],
+    });
+  }
+  if (key === 'mock-401') throw httpError(401, { code: null, message: 'Sin sesión.' });
+  if (key === 'mock-403') throw httpError(403, { code: null, message: 'No es tuyo.' });
+  if (key === 'mock-409-nombre' || BEHAVIORS.some((b) => b.id !== found.id && b.name.toLowerCase() === key)) {
+    throw httpError(409, { code: 'duplicateName', message: 'Nombre repetido.', codeError: null });
+  }
+  if (key === 'mock-409-largo') {
+    throw httpError(409, { code: 'codeTooLong', message: 'Código demasiado largo.', codeError: null });
+  }
+  if (key === 'mock-409-codigo') {
+    throw httpError(409, {
+      code: 'invalidCode',
+      message: 'El código no respeta la API.',
+      codeError: {
+        rule: 'primitiveAssignmentNotAllowed',
+        line: Math.max(1, String(code).split('\n').length),
+        column: 1,
+        message: 'No se puede asignar a una primitiva del sistema.',
+      },
+    });
+  }
+
+  found.name = name.trim();
+  found.code = code;
   return { ...found };
 }

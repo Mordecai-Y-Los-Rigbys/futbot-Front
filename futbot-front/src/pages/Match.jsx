@@ -54,6 +54,7 @@ function LiveMatch({ id, initialMatch }) {
     return () => controller.abort();
   }, [id, started]);
 
+
   // Cierre fatal (1008, 4xxx, waitExpired, 401...): sale del partido con un aviso.
   useEffect(() => {
     if (!fatal) return;
@@ -72,7 +73,7 @@ function LiveMatch({ id, initialMatch }) {
           status={status}
           onExit={() => navigate('/', { replace: true })}
         />
-        <MatchBehaviorPanel matchId={id} canManage={status === 'open'} teamVersion={meta.teamVersion} />
+        <MatchBehaviorPanel matchId={id} canManage={status === 'open'&& role === 'player'} teamVersion={meta.teamVersion} />
       </div>
     </main>
   );

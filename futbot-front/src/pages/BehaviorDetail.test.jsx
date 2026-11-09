@@ -2,11 +2,13 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Outlet, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import BehaviorDetail from './BehaviorDetail';
-import { getBehaviorById } from '../services/behaviorService';
+import { getBehaviorById, updateBehavior } from '../services/behaviorService';
 
 vi.mock('../services/behaviorService', () => ({
   getBehaviorById: vi.fn(),
+  updateBehavior: vi.fn(),
 }));
+vi.mock('../components/BehaviorCodeEditor', () => import('../test/BehaviorCodeEditorMock'));
 
 const CODE = 'if (hasBall) { shoot(); }';
 const behavior = { id: 7, name: 'Atacante', code: CODE };
@@ -14,12 +16,14 @@ const behavior = { id: 7, name: 'Atacante', code: CODE };
 const httpError = (status) => Object.assign(new Error(`HTTP ${status}`), { response: { status } });
 
 // Imita a la página de la lista: el detalle se dibuja en su <Outlet />, encima de ella.
+const onBehaviorUpdated = vi.fn();
 const ListLayout = () => (
   <>
     <p>PAGINA LISTA</p>
-    <Outlet />
+    <Outlet context={{ onBehaviorUpdated }} />
   </>
 );
+
 
 const renderAt = (path = '/behaviors/7') =>
   render(
@@ -43,6 +47,8 @@ describe('BehaviorDetail (popup)', () => {
   beforeEach(() => {
     getBehaviorById.mockReset();
     getBehaviorById.mockResolvedValue(behavior);
+    updateBehavior.mockReset(); 
+    onBehaviorUpdated.mockReset();
   });
 
   describe('carga', () => {
@@ -195,6 +201,72 @@ describe('BehaviorDetail (popup)', () => {
       fireEvent.click(screen.getByText(CODE));
 
       expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+  });
+
+  describe('edición', () => {
+    const openEditor = async () => {
+      renderAt();
+      await screen.findByText(CODE);
+      fireEvent.click(screen.getByRole('button', { name: 'Editar' }));
+    };
+
+    it('muestra "Editar" solo cuando el comportamiento ya cargó', async () => {
+      getBehaviorById.mockReturnValue(pending());
+      const { unmount } = renderAt();
+      expect(screen.queryByRole('button', { name: 'Editar' })).not.toBeInTheDocument();
+      unmount();
+
+      getBehaviorById.mockRejectedValue(httpError(404));
+      renderAt();
+      await screen.findByRole('alert');
+      expect(screen.queryByRole('button', { name: 'Editar' })).not.toBeInTheDocument();
+    });
+
+    it('abre el formulario con los valores actuales y sin tipo', async () => {
+      await openEditor();
+
+      const form = screen.getByRole('dialog', { name: 'Editar comportamiento' });
+      expect(form).toBeInTheDocument();
+      expect(screen.getByLabelText('Nombre')).toHaveValue('Atacante');
+      expect(screen.getByLabelText('Código')).toHaveValue(CODE);
+      expect(screen.queryByLabelText('Tipo')).not.toBeInTheDocument();
+    });
+
+    it('al guardar cierra el formulario, actualiza el detalle y avisa a la lista', async () => {
+      updateBehavior.mockResolvedValue({ id: 7, name: 'Defensor', code: 'go_to(1, 2)' });
+      await openEditor();
+
+      fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Defensor' } });
+      fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'go_to(1, 2)' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
+
+      expect(await screen.findByRole('heading', { name: 'Defensor' })).toBeInTheDocument();
+      expect(updateBehavior).toHaveBeenCalledWith(7, { name: 'Defensor', code: 'go_to(1, 2)' });
+      expect(screen.getByText('go_to(1, 2)')).toBeInTheDocument();
+      expect(screen.queryByRole('dialog', { name: 'Editar comportamiento' })).not.toBeInTheDocument();
+      expect(screen.getByRole('dialog', { name: 'Defensor' })).toBeInTheDocument();
+      expect(onBehaviorUpdated).toHaveBeenCalledTimes(1);
+    });
+
+    it('Cancelar cierra solo el formulario y deja el detalle', async () => {
+      await openEditor();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+      expect(screen.queryByRole('dialog', { name: 'Editar comportamiento' })).not.toBeInTheDocument();
+      expect(screen.getByText(CODE)).toBeInTheDocument();
+      expect(updateBehavior).not.toHaveBeenCalled();
+    });
+
+    it('Escape cierra el formulario pero no el detalle', async () => {
+      await openEditor();
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+
+      expect(screen.queryByRole('dialog', { name: 'Editar comportamiento' })).not.toBeInTheDocument();
+      expect(screen.getByRole('dialog', { name: 'Atacante' })).toBeInTheDocument();
+      expect(screen.getByText('PAGINA LISTA')).toBeInTheDocument();
     });
   });
 });

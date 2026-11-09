@@ -1,17 +1,35 @@
 import api from './api';
+import { USE_MOCKS } from '../config/mocks';
 import {
   createMatchConnectionMock,
   createMatchSocketMock,
   getMatchMock,
   getMatchBehaviorMock,
+  getMatchMock,
   getMatchTeamMock,
+  getSubstitutionsMock,
   reassignBehaviorMock,
   getSubstitutionsMock,
   setSubstitutionMock,
 } from './matchMocks';
-import { USE_MOCKS } from '../config/mocks';
 
+/**
+ * Obtiene un partido por id (GET /matches/{id}).
+ * Incluye result.penalties si hubo tanda de penales.
+ * Errores posibles: 401, 403, 404.
+ */
+export async function getMatch(matchId, { signal } = {}) {
+  if (USE_MOCKS) return getMatchMock(matchId);
 
+  const { data } = await api.get(`/matches/${encodeURIComponent(matchId)}`, { signal });
+  return data;
+}
+
+export async function getSubstitutions(matchId, { signal } = {}) {
+  if (USE_MOCKS) return getSubstitutionsMock(matchId, { signal });
+  const { data } = await api.get(`/matches/${encodeURIComponent(matchId)}/substitutions`, { signal });
+  return data;
+}
 // Nunca se activa en los tests (MODE === 'test'): ahí se mockea este módulo.
 
 /**
@@ -109,7 +127,7 @@ export async function reassignBehavior(matchId, { playerId, behaviorId }) {
  *   página está en https y ws si no. Sin esto quedaría "/api/ws/..." y
  *   new WebSocket() tira SyntaxError.
  */
-function resolveWsBase(rawBase) {
+export function resolveWsBase(rawBase) {
   const base = (rawBase || '').trim().replace(/\/+$/, '');
   if (/^wss?:\/\//i.test(base)) return base;
   if (/^https?:\/\//i.test(base)) return base.replace(/^http/i, 'ws');
