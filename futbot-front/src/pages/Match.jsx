@@ -5,6 +5,7 @@ import useMatchWebSocket, { INITIAL_META } from '../hooks/useMatchWebSocket';
 import { getMatch } from '../services/matchService';
 import Pitch2DCanvas from '../components/Pitch2DCanvas';
 import ScoreboardOverlay from '../components/ScoreboardOverlay';
+import MatchBehaviorPanel from '../components/MatchBehaviorPanel';
 import './Match.css';
 
 // TODO: `players` (nombre, atributos y behavior por jugador) sigue sin contrato:
@@ -28,7 +29,7 @@ const metaFromResult = (result) => ({
 // Partido en curso (o que todavía no empezó): se mira por WebSocket.
 function LiveMatch({ id, initialMatch }) {
   const navigate = useNavigate();
-  const { status, streamRef, meta, fatal } = useMatchWebSocket(id);
+  const { status, streamRef, meta, fatal, role } = useMatchWebSocket(id);
   const [match, setMatch] = useState(initialMatch);
   const roster = useMemo(() => rosterFor(match), [match]);
 
@@ -52,6 +53,7 @@ function LiveMatch({ id, initialMatch }) {
     return () => controller.abort();
   }, [id, started]);
 
+
   // Cierre fatal (1008, 4xxx, waitExpired, 401...): sale del partido con un aviso.
   useEffect(() => {
     if (!fatal) return;
@@ -68,6 +70,7 @@ function LiveMatch({ id, initialMatch }) {
           status={status}
           onExit={() => navigate('/', { replace: true })}
         />
+        <MatchBehaviorPanel matchId={id} canManage={status === 'open' && role === 'player'} />
       </div>
     </main>
   );

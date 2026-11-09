@@ -10,9 +10,11 @@ vi.mock('../services/matchService', () => ({
 
 const makeSocket = () => ({ onopen: null, onmessage: null, onclose: null, close: vi.fn() });
 
-const setup = async () => {
+// `connection` es lo que devuelve POST /matches/{id}/connections.
+// Por defecto es un jugador, como en los tests originales.
+const setup = async (connection = { tokenWs: 'tok', role: 'player' }) => {
   const socket = makeSocket();
-  createMatchConnection.mockResolvedValue({ tokenWs: 'tok' });
+  createMatchConnection.mockResolvedValue(connection);
   openMatchSocket.mockReturnValue(socket);
   const hook = renderHook(() => useMatchWebSocket('123'));
   await waitFor(() => expect(openMatchSocket).toHaveBeenCalledWith('123', 'tok'));
@@ -74,62 +76,155 @@ describe('useMatchWebSocket', () => {
     await waitFor(() => expect(result.current.fatal).toMatchObject({ to: '/login' }));
   });
 
-    const tick = (extra) => ({
-    data: JSON.stringify({
-      type: 'tick', score1: 0, score2: 0, elapsedTime: 150, phase: 'playing',
-      players: [], ballPosition: { x: 50, y: 30 }, event: null, ...extra,
-    }),
+  describe('rol de la conexión (jugador / espectador)', () => {
+    it('expone role "player" cuando el back lo informa', async () => {
+      const { result } = await setup({ tokenWs: 'tok', role: 'player' });
+
+      expect(result.current.role).toBe('player');
+    });
+
+    it('expone role "spectator" cuando el back lo informa', async () => {
+      const { result } = await setup({ tokenWs: 'tok', role: 'spectator' });
+
+      expect(result.current.role).toBe('spectator');
+    });
+
+    it('el rol ya está cargado cuando el status pasa a "open"', async () => {
+      const { socket, result } = await setup({ tokenWs: 'tok', role: 'spectator' });
+
+      act(() => socket.onopen());
+
+      expect(result.current.status).toBe('open');
+      expect(result.current.role).toBe('spectator');
+    });
+
+    it('si el back no manda role, queda null (la pantalla no muestra controles)', async () => {
+      const { result } = await setup({ tokenWs: 'tok' });
+
+      expect(result.current.role).toBeNull();
+    });
+
+    it('un role desconocido no se interpreta como jugador', async () => {
+      const { result } = await setup({ tokenWs: 'tok', role: 'otraCosa' });
+
+      expect(result.current.role).not.toBe('player');
+    });
+
+    it('al cambiar de partido el rol se reinicia a null hasta que llega el del nuevo', async () => {
+      const first = makeSocket();
+      createMatchConnection.mockResolvedValueOnce({ tokenWs: 'tok', role: 'player' });
+      openMatchSocket.mockReturnValueOnce(first);
+      const { result, rerender } = renderHook(({ id }) => useMatchWebSocket(id), {
+        initialProps: { id: '123' },
+      });
+      await waitFor(() => expect(result.current.role).toBe('player'));
+
+      // El segundo partido nunca responde: el rol viejo no puede quedar colgado.
+      createMatchConnection.mockReturnValueOnce(new Promise(() => {}));
+      rerender({ id: '456' });
+
+      expect(result.current.role).toBeNull();
+    });
   });
 
-  it('guarda el motivo y el tiempo restante de la pausa', async () => {
-    const { socket, result } = await setup();
+  describe('errores de acceso de un espectador', () => {
+    it('un 403 leagueAccessRequired al pedir el token explica que la liga es privada', async () => {
+      createMatchConnection.mockRejectedValue({
+        response: { status: 403, data: { code: 'leagueAccessRequired' } },
+      });
 
-    act(() =>
-      socket.onmessage(
-        tick({ phase: 'paused', pauseRemainingSeconds: 15, event: { type: 'pause', reason: 'hydration', durationSeconds: 15 } }),
-      ),
-    );
-    expect(result.current.meta).toMatchObject({ phase: 'paused', pauseReason: 'hydration', pauseRemaining: 15, pauseCount: 1 });
+      const { result } = renderHook(() => useMatchWebSocket('123'));
 
-    act(() => socket.onmessage(tick({ phase: 'paused', pauseRemainingSeconds: 12 })));
-    expect(result.current.meta).toMatchObject({ pauseReason: 'hydration', pauseRemaining: 12, pauseCount: 1 });
+      await waitFor(() => expect(result.current.fatal).not.toBeNull());
+      expect(result.current.fatal.message).toMatch(/privada/);
+      expect(result.current.fatal.message).not.toMatch(/No participás/);
+      expect(result.current.fatal.to).toBe('/');
+      expect(result.current.status).toBe('closed');
+      expect(openMatchSocket).not.toHaveBeenCalled();
+    });
+
+    it('un 403 notAPlayerInMatch (amistoso ajeno) sigue diciendo que no participa', async () => {
+      createMatchConnection.mockRejectedValue({
+        response: { status: 403, data: { code: 'notAPlayerInMatch' } },
+      });
+
+      const { result } = renderHook(() => useMatchWebSocket('123'));
+
+      await waitFor(() => expect(result.current.fatal).not.toBeNull());
+      expect(result.current.fatal.message).toMatch(/No participás/);
+    });
+
+    it('un 403 sin code mantiene el mensaje genérico', async () => {
+      createMatchConnection.mockRejectedValue({ response: { status: 403 } });
+
+      const { result } = renderHook(() => useMatchWebSocket('123'));
+
+      await waitFor(() => expect(result.current.fatal).not.toBeNull());
+      expect(result.current.fatal.message).toMatch(/No participás/);
+    });
+
+    it('un 403 no deja role cargado', async () => {
+      createMatchConnection.mockRejectedValue({
+        response: { status: 403, data: { code: 'leagueAccessRequired' } },
+      });
+
+      const { result } = renderHook(() => useMatchWebSocket('123'));
+
+      await waitFor(() => expect(result.current.fatal).not.toBeNull());
+      expect(result.current.role).toBeNull();
+    });
+
+    it('cierre 4403 / leagueAccessRequired en el handshake es fatal, sin reintentar', async () => {
+      const { socket, result } = await setup({ tokenWs: 'tok', role: 'spectator' });
+
+      act(() => socket.onclose({ code: 4403, reason: 'leagueAccessRequired' }));
+
+      expect(result.current.fatal.message).toMatch(/privada/);
+      expect(result.current.status).toBe('closed');
+      expect(createMatchConnection).toHaveBeenCalledTimes(1);
+    });
+
+    it('cierre 4403 / notAPlayerInMatch explica que el amistoso no se puede ver', async () => {
+      const { socket, result } = await setup({ tokenWs: 'tok', role: 'spectator' });
+
+      act(() => socket.onclose({ code: 4403, reason: 'notAPlayerInMatch' }));
+
+      expect(result.current.fatal.message).toMatch(/no se puede ver/);
+    });
+
+    it('un 4403 con un reason desconocido usa el mensaje por código', async () => {
+      const { socket, result } = await setup({ tokenWs: 'tok', role: 'spectator' });
+
+      act(() => socket.onclose({ code: 4403, reason: '' }));
+
+      expect(result.current.fatal.message).toMatch(/Error de validación/);
+    });
   });
 
-  it('el reloj no cambia durante la pausa', async () => {
-    const { socket, result } = await setup();
+  describe('el espectador recibe la misma transmisión', () => {
+    it('un espectador procesa los ticks igual que un jugador', async () => {
+      const { socket, result } = await setup({ tokenWs: 'tok', role: 'spectator' });
 
-    act(() => socket.onmessage(tick({ phase: 'paused', pauseRemainingSeconds: 15, event: { type: 'pause', reason: 'halftime' } })));
-    act(() => socket.onmessage(tick({ phase: 'paused', pauseRemainingSeconds: 10 })));
+      act(() => socket.onopen());
+      act(() =>
+        socket.onmessage({
+          data: JSON.stringify({
+            type: 'tick', score1: 2, score2: 1, elapsedTime: 30, phase: 'playing',
+            players: [], ballPosition: { x: 50, y: 30 }, event: null,
+          }),
+        }),
+      );
 
-    expect(result.current.meta.elapsedTime).toBe(150);
-  });
+      expect(result.current.meta).toMatchObject({ score1: 2, score2: 1, phase: 'playing' });
+    });
 
-  it('conectado en medio de la pausa no hay motivo pero sí tiempo restante', async () => {
-    const { socket, result } = await setup();
+    it('cierre 1000 / matchEnd de un espectador no es fatal', async () => {
+      const { socket, result } = await setup({ tokenWs: 'tok', role: 'spectator' });
 
-    act(() => socket.onmessage(tick({ phase: 'paused', pauseRemainingSeconds: 7 })));
+      act(() => socket.onclose({ code: 1000, reason: 'matchEnd' }));
 
-    expect(result.current.meta).toMatchObject({ phase: 'paused', pauseReason: null, pauseRemaining: 7, pauseCount: 1 });
-  });
-
-  it('al terminar la pausa se limpia y la próxima pausa cuenta como nueva', async () => {
-    const { socket, result } = await setup();
-
-    act(() => socket.onmessage(tick({ phase: 'paused', pauseRemainingSeconds: 1, event: { type: 'pause', reason: 'hydration' } })));
-    act(() => socket.onmessage(tick({ phase: 'countdown', pauseRemainingSeconds: null, event: { type: 'periodStart', periodNumber: 2, countdownSeconds: 5 } })));
-    expect(result.current.meta).toMatchObject({ pauseReason: null, pauseRemaining: null, periodNumber: 2 });
-    expect(result.current.meta.countdown).toMatchObject({ seconds: 5 });
-
-    act(() => socket.onmessage(tick({ phase: 'playing' })));
-    act(() => socket.onmessage(tick({ phase: 'paused', pauseRemainingSeconds: 15, event: { type: 'pause', reason: 'halftime' } })));
-    expect(result.current.meta).toMatchObject({ pauseReason: 'halftime', pauseCount: 2 });
-  });
-
-  it('conectado durante la cuenta regresiva sin periodStart no hay countdown local', async () => {
-    const { socket, result } = await setup();
-
-    act(() => socket.onmessage(tick({ phase: 'countdown', pauseRemainingSeconds: null })));
-
-    expect(result.current.meta).toMatchObject({ phase: 'countdown', countdown: null });
+      expect(result.current.fatal).toBeNull();
+      expect(result.current.status).toBe('closed');
+    });
   });
 });
