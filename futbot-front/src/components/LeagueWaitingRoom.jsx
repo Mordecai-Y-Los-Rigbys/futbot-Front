@@ -186,8 +186,10 @@ export default function LeagueWaitingRoom({ league, onLeagueChanged }) {
             Unirse a la liga
           </button>
         )}
+
+        <Link to="/leagues">Volver a ligas</Link>
       </div>
-          
+      
       {isLeaveOpen && (
         <Modal title="Abandonar liga" onClose={() => setIsLeaveOpen(false)} isBusy={isLeaving}>
           <p>¿Estás seguro que deseas abandonar esta liga?</p>
