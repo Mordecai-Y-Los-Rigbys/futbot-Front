@@ -10,23 +10,6 @@ import {
   reassignBehaviorMock,
 } from './matchMocks';
 
-/**
- * Obtiene un partido por id (GET /matches/{id}).
- * Incluye result.penalties si hubo tanda de penales.
- * Errores posibles: 401, 403, 404.
- */
-export async function getMatch(matchId, { signal } = {}) {
-  if (USE_MOCKS) return getMatchMock(matchId);
-
-  const { data } = await api.get(`/matches/${encodeURIComponent(matchId)}`, { signal });
-  return data;
-}
-
-export async function getSubstitutions(matchId, { signal } = {}) {
-  if (USE_MOCKS) return getSubstitutionsMock(matchId, { signal });
-  const { data } = await api.get(`/matches/${encodeURIComponent(matchId)}/substitutions`, { signal });
-  return data;
-}
 // Nunca se activa en los tests (MODE === 'test'): ahí se mockea este módulo.
 
 /**
@@ -41,15 +24,31 @@ export async function createMatchConnection(matchId) {
   return data;
 }
 
-/**
- * Obtiene los titulares del equipo del usuario en el partido.
- * Contrato provisional: { starters: { playerId, playerName, role }[] }.
- * @returns {Promise<{ starters: { playerId: number, playerName: string, role: string }[] }>}
- */
 export async function getMatchTeam(matchId, { signal } = {}) {
   if (USE_MOCKS) return getMatchTeamMock(matchId);
 
   const { data } = await api.get(`/matches/${encodeURIComponent(matchId)}/team`, { signal });
+  return data;
+}
+
+/**
+ * Primera sustitución de cada equipo (GET /matches/{id}/substitutions).
+ * Solo la pueden pedir los dos jugadores del partido y solo con el partido en juego.
+ * Errores posibles: 401 (sin sesión), 403 (no juega), 404 (no existe), 409 (matchNotStarted).
+ * @returns {Promise<{ club1: Substitution|null, club2: Substitution|null }>}
+ *   donde Substitution = { starterName, substituteName } (sale / entra).
+ */
+export async function getSubstitutions(matchId, { signal } = {}) {
+  if (USE_MOCKS) return getSubstitutionsMock(matchId, { signal });
+
+  const { data } = await api.get(`/matches/${encodeURIComponent(matchId)}/substitutions`, { signal });
+  return data;
+}
+
+export async function getMatch(matchId, { signal } = {}) {
+  if (USE_MOCKS) return getMatchMock(matchId, { signal });
+
+  const { data } = await api.get(`/matches/${encodeURIComponent(matchId)}`, { signal });
   return data;
 }
 

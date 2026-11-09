@@ -71,3 +71,13 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+.league-lobby__primary {
+  padding: 0.7rem 1.2rem;
+  border: none;
+  border-radius: 8px;
+  background: #2f7a1c;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}

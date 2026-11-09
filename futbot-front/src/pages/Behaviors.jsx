@@ -3,6 +3,7 @@ import { Link, Outlet } from 'react-router-dom';
 import axios from 'axios';
 import { getBehaviors, PAGE_SIZE } from '../services/behaviorService';
 import TestBehaviorButton from '../components/TestBehaviorButton';
+import BehaviorFormDialog from '../components/BehaviorFormDialog';
 import './Behaviors.css';
 
 const DEBOUNCE_MS = 400;
@@ -33,6 +34,22 @@ export default function Behaviors() {
   // Se incrementa para forzar una nueva llamada aunque nada más haya cambiado
   // (Enter con el mismo texto, o botón "Reintentar").
   const [reloadKey, setReloadKey] = useState(0);
+
+  // Formulario de creación y aviso de éxito.
+  const [isCreating, setIsCreating] = useState(false);
+  const [notice, setNotice] = useState(null);
+
+  const reloadList = () => setReloadKey((key) => key + 1);
+  // El detalle avisa que el comportamiento se eliminó o ya no está disponible.
+  const handleBehaviorRemoved = (message) => {
+    setNotice(message);
+    reloadList();
+  };
+  const handleCreated = (behavior) => {
+    setIsCreating(false);
+    setNotice(`Comportamiento "${behavior.name}" creado correctamente.`);
+    setReloadKey((key) => key + 1); // el listado se vuelve a pedir
+  };
 
   // Debounce: cada tecla reinicia el temporizador (el cleanup lo cancela).
   useEffect(() => {
@@ -109,7 +126,19 @@ export default function Behaviors() {
 
   return (
     <main className="behaviors">
-      <h1>Comportamientos</h1>
+      <header className="behaviors__header">
+        <h1>Comportamientos</h1>
+        <button type="button" onClick={() => setIsCreating(true)}>
+          Crear
+        </button>
+      </header>
+
+      {notice && (
+        <div className="behaviors__notice" role="status">
+          <span>{notice}</span>
+          <button type="button" aria-label="Cerrar aviso" onClick={() => setNotice(null)}>×</button>
+        </div>
+      )}
 
       {/* Barra de acciones: un único botón "Probar comportamiento" (no va por fila ni en el detalle). */}
       <div className="behaviors__actions">
@@ -183,8 +212,12 @@ export default function Behaviors() {
         </nav>
       )}
 
+      {isCreating && (
+        <BehaviorFormDialog onClose={() => setIsCreating(false)} onSaved={handleCreated} />
+      )}
+
       {/* Acá se dibuja el popup de detalle (ruta anidada /behaviors/:id). */}
-      <Outlet />
+      <Outlet context={{ onBehaviorUpdated: reloadList, onBehaviorRemoved: handleBehaviorRemoved }} />
     </main>
   );
 }
