@@ -6,6 +6,7 @@ import useMatchWebSocket, { INITIAL_META } from '../hooks/useMatchWebSocket';
 import { getMatch, getMatchLineups } from '../services/matchService';
 import Pitch2DCanvas from '../components/Pitch2DCanvas';
 import ScoreboardOverlay from '../components/ScoreboardOverlay';
+import MatchBehaviorPanel from '../components/MatchBehaviorPanel';
 import './Match.css';
 
 // `players` (nombre, rol y club de cada titular) sale de GET /matches/{id}/lineups.
@@ -32,7 +33,7 @@ const metaFromResult = (result) => ({
 // Partido en curso (o que todavía no empezó): se mira por WebSocket.
 function LiveMatch({ id, initialMatch }) {
   const navigate = useNavigate();
-  const { status, streamRef, meta, fatal } = useMatchWebSocket(id);
+  const { status, streamRef, meta, fatal, role } = useMatchWebSocket(id);
   const [match, setMatch] = useState(initialMatch);
   const [players, setPlayers] = useState(EMPTY_PLAYERS);
   const roster = useMemo(() => rosterFor(match, players), [match, players]);
@@ -94,6 +95,7 @@ function LiveMatch({ id, initialMatch }) {
           status={status}
           onExit={() => navigate('/', { replace: true })}
         />
+        <MatchBehaviorPanel matchId={id} canManage={status === 'open' && role === 'player'} />
       </div>
     </main>
   );

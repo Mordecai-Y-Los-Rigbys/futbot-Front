@@ -1,0 +1,20 @@
+/* Usa los estilos de popup de BehaviorModal.css (overlay, ventana, body, footer). */
+.confirm__window {
+  max-width: 420px;
+}
+
+.confirm__message {
+  margin: 0;
+  color: var(--text-h);
+  overflow-wrap: anywhere;
+}
+
+.modal__overlay .confirm__danger {
+  color: #de1918;
+  border-color: #de1918;
+}
+
+.modal__overlay .confirm__window button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
