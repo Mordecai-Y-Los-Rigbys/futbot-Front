@@ -12,15 +12,15 @@ const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true' && import.meta.env.M
  * Lista los behaviors del usuario logueado (GET /behaviors/me).
  * @param {string} name  Filtro por nombre (parcial, case-insensitive). Vacío = sin filtro.
  * @param {number} page  Página a pedir, empezando en 1.
- * @param {{ signal?: AbortSignal }} [options]  Permite cancelar la request.
+ * @param {{ signal?: AbortSignal, type?: string }} [options]  Permite filtrar por tipo y cancelar la request.
  * @returns {Promise<{ items: {id: number, name: string}[], page: number, pageSize: number, total: number }>}
  */
-export async function getBehaviors(name, page = 1, { signal } = {}) {
-  if (USE_MOCKS) return getBehaviorsMock(name, page, { signal });
+export async function getBehaviors(name, page = 1, { signal, type } = {}) {
+  if (USE_MOCKS) return getBehaviorsMock(name, page, { signal, type });
 
   const { data } = await api.get('/behaviors/me', {
     // Con `undefined` axios omite el parámetro, así `?name=` no viaja vacío.
-    params: { name: name || undefined, page },
+    params: { name: name || undefined, page, ...(type ? { type } : {}) },
     signal,
   });
   return data;

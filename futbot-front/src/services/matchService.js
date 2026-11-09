@@ -1,5 +1,11 @@
 import api from './api';
-import { createMatchConnectionMock, createMatchSocketMock } from './matchMocks';
+import {
+  createMatchConnectionMock,
+  createMatchSocketMock,
+  getMatchBehaviorMock,
+  getMatchTeamMock,
+  reassignBehaviorMock,
+} from './matchMocks';
 
 // Nunca se activa en los tests (MODE === 'test'): ahí se mockea este módulo.
 const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true' && import.meta.env.MODE !== 'test';
@@ -14,6 +20,36 @@ export async function createMatchConnection(matchId) {
 
   const { data } = await api.post(`/matches/${encodeURIComponent(matchId)}/connections`);
   return data;
+}
+
+/**
+ * Obtiene los titulares del equipo del usuario en el partido.
+ * Contrato provisional: { starters: { playerId, playerName, role }[] }.
+ * @returns {Promise<{ starters: { playerId: number, playerName: string, role: string }[] }>}
+ */
+export async function getMatchTeam(matchId, { signal } = {}) {
+  if (USE_MOCKS) return getMatchTeamMock(matchId);
+
+  const { data } = await api.get(`/matches/${encodeURIComponent(matchId)}/team`, { signal });
+  return data;
+}
+
+/** Obtiene el comportamiento actual de un titular durante el partido. */
+export async function getMatchBehavior(matchId, playerId, { signal } = {}) {
+  if (USE_MOCKS) return getMatchBehaviorMock(matchId, playerId);
+
+  const { data } = await api.get(`/matches/${encodeURIComponent(matchId)}/behavior`, {
+    params: { playerId },
+    signal,
+  });
+  return data;
+}
+
+/** Solicita cambiar el comportamiento de un titular durante el partido. */
+export async function reassignBehavior(matchId, { playerId, behaviorId }) {
+  if (USE_MOCKS) return reassignBehaviorMock(matchId, { playerId, behaviorId });
+
+  await api.put(`/matches/${encodeURIComponent(matchId)}/behavior`, { playerId, behaviorId });
 }
 
 /**
@@ -51,5 +87,5 @@ export function openMatchSocket(matchId, tokenWs) {
 }
 
 // TODO: datos estáticos del partido (nombre/usuario/avatar de cada club y, por jugador,
-// nombre, atributos y behavior activo). El tick del WS solo trae `playerId` y posición,
-// así que esto tiene que salir de otro endpoint REST. Pendiente de definir el contrato.
+// nombre y atributos). El tick del WS solo trae `playerId` y posición, así que esto
+// tiene que salir de otro endpoint REST. Pendiente de definir el contrato.
