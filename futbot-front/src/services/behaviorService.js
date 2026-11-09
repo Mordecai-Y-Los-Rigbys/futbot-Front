@@ -1,26 +1,26 @@
 import api from './api';
 import { getBehaviorByIdMock, getBehaviorsMock } from './behaviorMocks';
+import { USE_MOCKS } from '../config/mocks';
 
 // El backend responde siempre de a 50 elementos; el cliente no puede cambiarlo.
 export const PAGE_SIZE = 50;
 
 // Modo sin backend: poné VITE_USE_MOCKS=true en futbot-front/.env.local y reiniciá Vite.
 // Nunca se activa en los tests (MODE === 'test'), que mockean `api` por su cuenta.
-const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true' && import.meta.env.MODE !== 'test';
 
 /**
  * Lista los behaviors del usuario logueado (GET /behaviors/me).
  * @param {string} name  Filtro por nombre (parcial, case-insensitive). Vacío = sin filtro.
  * @param {number} page  Página a pedir, empezando en 1.
- * @param {{ signal?: AbortSignal }} [options]  Permite cancelar la request.
+ * @param {{ signal?: AbortSignal, type?: string }} [options]  Permite filtrar por tipo y cancelar la request.
  * @returns {Promise<{ items: {id: number, name: string}[], page: number, pageSize: number, total: number }>}
  */
-export async function getBehaviors(name, page = 1, { signal } = {}) {
-  if (USE_MOCKS) return getBehaviorsMock(name, page, { signal });
+export async function getBehaviors(name, page = 1, { signal, type } = {}) {
+  if (USE_MOCKS) return getBehaviorsMock(name, page, { signal, type });
 
   const { data } = await api.get('/behaviors/me', {
     // Con `undefined` axios omite el parámetro, así `?name=` no viaja vacío.
-    params: { name: name || undefined, page },
+    params: { name: name || undefined, page, ...(type ? { type } : {}) },
     signal,
   });
   return data;
