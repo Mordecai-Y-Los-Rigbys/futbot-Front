@@ -10,23 +10,6 @@ import {
   reassignBehaviorMock,
 } from './matchMocks';
 
-/**
- * Obtiene un partido por id (GET /matches/{id}).
- * Incluye result.penalties si hubo tanda de penales.
- * Errores posibles: 401, 403, 404.
- */
-export async function getMatch(matchId, { signal } = {}) {
-  if (USE_MOCKS) return getMatchMock(matchId);
-
-  const { data } = await api.get(`/matches/${encodeURIComponent(matchId)}`, { signal });
-  return data;
-}
-
-export async function getSubstitutions(matchId, { signal } = {}) {
-  if (USE_MOCKS) return getSubstitutionsMock(matchId, { signal });
-  const { data } = await api.get(`/matches/${encodeURIComponent(matchId)}/substitutions`, { signal });
-  return data;
-}
 // Nunca se activa en los tests (MODE === 'test'): ahí se mockea este módulo.
 
 /**
@@ -38,6 +21,13 @@ export async function createMatchConnection(matchId) {
   if (USE_MOCKS) return createMatchConnectionMock(matchId);
 
   const { data } = await api.post(`/matches/${encodeURIComponent(matchId)}/connections`);
+  return data;
+}
+
+export async function getMatchTeam(matchId, { signal } = {}) {
+  if (USE_MOCKS) return getMatchTeamMock(matchId);
+
+  const { data } = await api.get(`/matches/${encodeURIComponent(matchId)}/team`, { signal });
   return data;
 }
 
