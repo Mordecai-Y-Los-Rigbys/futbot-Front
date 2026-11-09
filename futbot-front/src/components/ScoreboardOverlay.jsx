@@ -28,7 +28,7 @@ function ClubBadge({ club, fallbackName, number }) {
   );
 }
 
-export default function ScoreboardOverlay({ meta, roster, status, onExit }) {
+export default function ScoreboardOverlay({ meta, roster, status, onExit, finishedTitle = 'Partido finalizado', exitLabel = 'Volver al inicio' }) {
   const { score1, score2, elapsedTime, phase, periodNumber, countdown, goal, result, pauseReason, pauseRemaining, pauseCount } = meta;
   const [club1, club2] = roster?.clubs ?? [];
 
@@ -105,11 +105,11 @@ export default function ScoreboardOverlay({ meta, roster, status, onExit }) {
 
         {phase === 'finished' && (
           <div className="final" role="status">
-            <span className="final__title">Partido finalizado</span>
+            <span className="final__title">{finishedTitle}</span>
             <span className="final__score">
               {(result ?? { score1, score2 }).score1} : {(result ?? { score1, score2 }).score2}
             </span>
-            <button type="button" onClick={onExit}>Volver al inicio</button>
+            <button type="button" onClick={onExit}>{exitLabel}</button>
           </div>
         )}
       </div>
