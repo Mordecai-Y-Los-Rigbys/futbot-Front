@@ -1,14 +1,18 @@
 import api from './api';
-import { createMatchConnectionMock, createMatchSocketMock, getNextSubstitutionsMock, getMatchMock } from './matchMocks';
-import { USE_MOCKS } from '../config/mocks';
-
+import {
+  createMatchConnectionMock,
+  createMatchSocketMock,
+  getMatchBehaviorMock,
+  getMatchTeamMock,
+  reassignBehaviorMock,
+} from './matchMocks';
 
 // Nunca se activa en los tests (MODE === 'test'): ahí se mockea este módulo.
 
 /**
  * Pide el tokenWs para abrir el WebSocket del partido (POST /matches/{id}/connections).
  * Errores posibles: 401 (sin sesión), 403 (no participa), 404 (no existe), 409 (terminado/cancelado).
- * @returns {Promise<{ tokenWs: string }>}
+ * @returns {Promise<{ tokenWs: string }>}  
  */
 export async function createMatchConnection(matchId) {
   if (USE_MOCKS) return createMatchConnectionMock(matchId);
@@ -18,30 +22,33 @@ export async function createMatchConnection(matchId) {
 }
 
 /**
- * Primera sustitución de cada equipo (GET /matches/{id}/substitutions/next).
- * Solo la pueden pedir los dos jugadores del partido y solo con el partido en juego.
- * Errores posibles: 401 (sin sesión), 403 (no juega), 404 (no existe), 409 (matchNotStarted).
- * @returns {Promise<{ club1: Substitution|null, club2: Substitution|null }>}
- *   donde Substitution = { starterName, substituteName } (sale / entra).
+ * Obtiene los titulares del equipo del usuario en el partido.
+ * Contrato provisional: { starters: { playerId, playerName, role }[] }.
+ * @returns {Promise<{ starters: { playerId: number, playerName: string, role: string }[] }>}
  */
-export async function getNextSubstitutions(matchId, { signal } = {}) {
-  if (USE_MOCKS) return getNextSubstitutionsMock(matchId, { signal });
+export async function getMatchTeam(matchId, { signal } = {}) {
+  if (USE_MOCKS) return getMatchTeamMock(matchId);
 
-  const { data } = await api.get(`/matches/${encodeURIComponent(matchId)}/substitutions/next`, { signal });
+  const { data } = await api.get(`/matches/${encodeURIComponent(matchId)}/team`, { signal });
   return data;
 }
 
-/**
- * Partido completo (GET /matches/{id}): clubes con su usuario, estado y resultado.
- * Solo lo piden los dos usuarios del partido. Orden de errores: 401 > 404 > 403.
- * @returns {Promise<Match>} con club1 y club2 = UserClub { id, username, name, avatar? };
- *   club2 es null en un amistoso sin rival.
- */
-export async function getMatch(matchId, { signal } = {}) {
-  if (USE_MOCKS) return getMatchMock(matchId, { signal });
+/** Obtiene el comportamiento actual de un titular durante el partido. */
+export async function getMatchBehavior(matchId, playerId, { signal } = {}) {
+  if (USE_MOCKS) return getMatchBehaviorMock(matchId, playerId);
 
-  const { data } = await api.get(`/matches/${encodeURIComponent(matchId)}`, { signal });
+  const { data } = await api.get(`/matches/${encodeURIComponent(matchId)}/behavior`, {
+    params: { playerId },
+    signal,
+  });
   return data;
+}
+
+/** Solicita cambiar el comportamiento de un titular durante el partido. */
+export async function reassignBehavior(matchId, { playerId, behaviorId }) {
+  if (USE_MOCKS) return reassignBehaviorMock(matchId, { playerId, behaviorId });
+
+  await api.put(`/matches/${encodeURIComponent(matchId)}/behavior`, { playerId, behaviorId });
 }
 
 /**
@@ -52,7 +59,7 @@ export async function getMatch(matchId, { signal } = {}) {
  *   página está en https y ws si no. Sin esto quedaría "/api/ws/..." y
  *   new WebSocket() tira SyntaxError.
  */
-function resolveWsBase(rawBase) {
+export function resolveWsBase(rawBase) {
   const base = (rawBase || '').trim().replace(/\/+$/, '');
   if (/^wss?:\/\//i.test(base)) return base;
   if (/^https?:\/\//i.test(base)) return base.replace(/^http/i, 'ws');
@@ -79,5 +86,5 @@ export function openMatchSocket(matchId, tokenWs) {
 }
 
 // TODO: datos estáticos del partido (nombre/usuario/avatar de cada club y, por jugador,
-// nombre, atributos y behavior activo). El tick del WS solo trae `playerId` y posición,
-// así que esto tiene que salir de otro endpoint REST. Pendiente de definir el contrato.
+// nombre y atributos). El tick del WS solo trae `playerId` y posición, así que esto
+// tiene que salir de otro endpoint REST. Pendiente de definir el contrato.

@@ -1,0 +1,76 @@
+.league-lobby {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+.league-lobby__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.league-lobby__facts li {
+  padding: 0.25rem 0.75rem;
+  border: 1px solid #3a3d4a;
+  border-radius: 999px;
+  font-size: 0.9rem;
+}
+
+.league-lobby__participants {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.league-lobby__participants li {
+  padding: 0.75rem 1rem;
+  border: 1px solid #3a3d4a;
+  border-radius: 8px;
+}
+
+.league-lobby__password {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 360px;
+}
+
+.league-lobby__password label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.league-lobby__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.league-lobby__primary,
+.league-lobby__danger {
+  padding: 0.7rem 1.2rem;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.league-lobby__primary {
+  background: #2f7a1c;
+}
+
+.league-lobby__danger {
+  background: #a12d2d;
+}
+
+.league-lobby__danger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
