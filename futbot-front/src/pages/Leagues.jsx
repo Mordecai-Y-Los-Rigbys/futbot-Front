@@ -40,7 +40,7 @@ function LeagueRow({ league, onOpen }) {
           {league.name}
           {/* Solo se etiqueta el modo especial: allowDraws === false. */}
           {league.allowDraws === false && (
-            <span className="leagues__mode">Modo penales</span>
+            <span className="leagues__mode">Definición por Penales</span>
           )}
         </span>
         <span className="leagues__creator">{`${league.creator.name} · @${league.creator.username}`}</span>
