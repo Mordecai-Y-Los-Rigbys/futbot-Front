@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, Outlet } from 'react-router-dom';
 import axios from 'axios';
 import { getBehaviors, PAGE_SIZE } from '../services/behaviorService';
+import TestBehaviorButton from '../components/TestBehaviorButton';
 import './Behaviors.css';
 
 const DEBOUNCE_MS = 400;
@@ -109,6 +110,11 @@ export default function Behaviors() {
   return (
     <main className="behaviors">
       <h1>Comportamientos</h1>
+
+      {/* Barra de acciones: un único botón "Probar comportamiento" (no va por fila ni en el detalle). */}
+      <div className="behaviors__actions">
+        <TestBehaviorButton />
+      </div>
 
       <div className="behaviors__search">
         <label htmlFor="behavior-search">Buscar por nombre</label>
