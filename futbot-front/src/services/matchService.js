@@ -6,6 +6,7 @@ import {
   getMatchBehaviorMock,
   getMatchMock,
   getMatchTeamMock,
+  getSubstitutionsMock,
   reassignBehaviorMock,
 } from './matchMocks';
 
@@ -21,6 +22,11 @@ export async function getMatch(matchId, { signal } = {}) {
   return data;
 }
 
+export async function getSubstitutions(matchId, { signal } = {}) {
+  if (USE_MOCKS) return getSubstitutionsMock(matchId, { signal });
+  const { data } = await api.get(`/matches/${encodeURIComponent(matchId)}/substitutions`, { signal });
+  return data;
+}
 // Nunca se activa en los tests (MODE === 'test'): ahí se mockea este módulo.
 
 /**
