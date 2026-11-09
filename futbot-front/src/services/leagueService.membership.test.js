@@ -2,9 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import api from './api';
 import {
   getLeague,
-  getLeagueParticipants,
-  joinLeague,
   unlockLeague,
+  leaveLeague,
 } from './leagueService';
 
 vi.mock('./api', () => ({ default: { get: vi.fn(), post: vi.fn(), delete: vi.fn() } }));
@@ -57,5 +56,26 @@ describe('unlockLeague', () => {
     api.post.mockRejectedValue(error);
 
     await expect(unlockLeague(5, { password: 'mala' })).rejects.toBe(error);
+  });
+});
+
+describe('leaveLeague', () => {
+  beforeEach(() => {
+    api.delete.mockReset();
+  });
+
+  it('pide DELETE /leagues/{id}/participants/me', async () => {
+    api.delete.mockResolvedValue({ status: 204 });
+
+    await leaveLeague(5);
+
+    expect(api.delete).toHaveBeenCalledWith('/leagues/5/participants/me');
+  });
+
+  it('propaga el 409 (por ejemplo, el creador no puede abandonar)', async () => {
+    const error = { response: { status: 409, data: { code: 'isCreator' } } };
+    api.delete.mockRejectedValue(error);
+
+    await expect(leaveLeague(5)).rejects.toBe(error);
   });
 });
