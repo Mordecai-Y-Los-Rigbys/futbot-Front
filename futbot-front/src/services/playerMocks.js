@@ -44,3 +44,13 @@ export async function getPlayersMock(page = 1, { signal } = {}) {
   await wait(MOCK_DELAY_MS, signal);
   return [...MOCK_PLAYERS];
 }
+
+
+// GET /players/me con filtro por nombre y paginación de 50 (igual que el backend).
+export async function getPlayersPageMock(name, page = 1, { signal } = {}) {
+  await wait(MOCK_DELAY_MS, signal);
+  const term = (name || '').trim().toLowerCase();
+  const filtered = MOCK_PLAYERS.filter((p) => !term || p.name.toLowerCase().includes(term));
+  const start = (page - 1) * 50;
+  return { items: filtered.slice(start, start + 50), page, total: filtered.length };
+}
