@@ -3,9 +3,9 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import PausePanel from './PausePanel';
 import { AuthContext } from '../context/AuthContext.jsx';
-import { getNextSubstitutions } from '../services/matchService';
+import { getSubstitutions } from '../services/matchService';
 
-vi.mock('../services/matchService', () => ({ getNextSubstitutions: vi.fn() }));
+vi.mock('../services/matchService', () => ({ getSubstitutions: vi.fn() }));
 
 const roster = { clubs: [{ username: 'yo', name: 'Mi Club' }, { username: 'otro', name: 'Rival FC' }] };
 const SUBS = { starterName: 'Messi', substituteName: 'Di María' };
@@ -26,8 +26,8 @@ const renderPanel = ({ props = {}, username = 'yo' } = {}) =>
 
 describe('PausePanel', () => {
   beforeEach(() => {
-    getNextSubstitutions.mockReset();
-    getNextSubstitutions.mockResolvedValue({ club1: null, club2: null });
+    getSubstitutions.mockReset();
+    getSubstitutions.mockResolvedValue({ club1: null, club2: null });
   });
 
   it('hydration: "Pausa de hidratación" y el tiempo que falta', () => {
@@ -70,12 +70,12 @@ describe('PausePanel', () => {
   it('consulta los cambios del partido de la URL al montarse', async () => {
     renderPanel();
 
-    await waitFor(() => expect(getNextSubstitutions).toHaveBeenCalledTimes(1));
-    expect(getNextSubstitutions.mock.calls[0][0]).toBe('5');
+    await waitFor(() => expect(getSubstitutions).toHaveBeenCalledTimes(1));
+    expect(getSubstitutions.mock.calls[0][0]).toBe('5');
   });
 
   it('mi cambio a la izquierda y el del rival a la derecha, con entra y sale marcados', async () => {
-    getNextSubstitutions.mockResolvedValue({
+    getSubstitutions.mockResolvedValue({
       club1: SUBS,
       club2: { starterName: 'Otamendi', substituteName: 'Pezzella' },
     });
@@ -94,7 +94,7 @@ describe('PausePanel', () => {
   });
 
   it('si soy el club2, mi cambio es el de club2', async () => {
-    getNextSubstitutions.mockResolvedValue({ club1: null, club2: SUBS });
+    getSubstitutions.mockResolvedValue({ club1: null, club2: SUBS });
     renderPanel({ username: 'otro' });
 
     const mine = await screen.findByTestId('subs-mine');
@@ -103,7 +103,7 @@ describe('PausePanel', () => {
   });
 
   it('un club null no muestra ningún cambio en su lado', async () => {
-    getNextSubstitutions.mockResolvedValue({ club1: SUBS, club2: null });
+    getSubstitutions.mockResolvedValue({ club1: SUBS, club2: null });
     renderPanel();
 
     await screen.findByTestId('subs-mine');
@@ -113,16 +113,16 @@ describe('PausePanel', () => {
   it('con ambos clubes null no se muestra el panel de cambios', async () => {
     renderPanel();
 
-    await waitFor(() => expect(getNextSubstitutions).toHaveBeenCalled());
+    await waitFor(() => expect(getSubstitutions).toHaveBeenCalled());
     expect(screen.queryByTestId('subs-mine')).toBeNull();
     expect(screen.getByText('Pausa de hidratación')).toBeInTheDocument();
   });
 
   it.each([401, 403, 404, 409])('si el endpoint responde %i no hay panel y la pausa sigue visible', async (status) => {
-    getNextSubstitutions.mockRejectedValue({ response: { status } });
+    getSubstitutions.mockRejectedValue({ response: { status } });
     renderPanel();
 
-    await waitFor(() => expect(getNextSubstitutions).toHaveBeenCalled());
+    await waitFor(() => expect(getSubstitutions).toHaveBeenCalled());
     expect(screen.queryByTestId('subs-mine')).toBeNull();
     expect(screen.getByText('Pausa de hidratación')).toBeInTheDocument();
     expect(screen.getByText('Vuelve en 12 s')).toBeInTheDocument();
