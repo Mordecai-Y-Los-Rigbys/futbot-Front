@@ -21,7 +21,7 @@ const renderButton = (initialEntries = ['/behaviors']) =>
     </MemoryRouter>,
   );
 
-const testButton = () => screen.getByRole('button', { name: 'Probar comportamiento' });
+const testButton = () => screen.getByRole('button', { name: 'Probar comportamientos' });
 
 describe('TestBehaviorButton', () => {
   beforeEach(() => {
