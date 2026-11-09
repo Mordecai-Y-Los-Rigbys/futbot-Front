@@ -23,6 +23,7 @@ export async function createMatchConnectionMock(matchId) {
 
   return {
     tokenWs: `mock_ws_token_match_${matchId}_${Date.now()}`,
+    role: 'player',
   };
 }
 

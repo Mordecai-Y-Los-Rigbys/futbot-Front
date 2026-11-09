@@ -12,7 +12,7 @@ const ROSTER = { clubs: [null, null], players: {} };
 export default function Match() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { status, streamRef, meta, fatal } = useMatchWebSocket(id);
+  const { status, streamRef, meta, fatal, role } = useMatchWebSocket(id);
 
   // Cierre fatal (1008, 4xxx, waitExpired, 401...): sale del partido con un aviso.
   useEffect(() => {
@@ -30,7 +30,7 @@ export default function Match() {
           status={status}
           onExit={() => navigate('/', { replace: true })}
         />
-        <MatchBehaviorPanel matchId={id} canManage={status === 'open'} />
+        <MatchBehaviorPanel matchId={id} canManage={status === 'open' && role === 'player'} />
       </div>
     </main>
   );
