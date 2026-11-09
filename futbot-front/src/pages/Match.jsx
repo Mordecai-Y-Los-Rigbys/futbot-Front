@@ -1,13 +1,15 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import useMatchWebSocket from '../hooks/useMatchWebSocket';
+import { getMatch } from '../services/matchService';
 import Pitch2DCanvas from '../components/Pitch2DCanvas';
 import ScoreboardOverlay from '../components/ScoreboardOverlay';
 import MatchBehaviorPanel from '../components/MatchBehaviorPanel';
 import './Match.css';
 
-// (ROSTER y su TODO quedan igual)
-const ROSTER = { clubs: [null, null], players: {} };
+// TODO: `players` (nombre, atributos y behavior por jugador) sigue sin contrato:
+// GET /matches/{id} solo trae los clubes.
+const INITIAL_ROSTER = { clubs: [null, null], players: {} };
 
 export default function Match() {
   const { id } = useParams();
@@ -23,10 +25,10 @@ export default function Match() {
   return (
     <main className="match">
       <div className="match__stage">
-        <Pitch2DCanvas streamRef={streamRef} roster={ROSTER} />
+        <Pitch2DCanvas streamRef={streamRef} roster={roster} />
         <ScoreboardOverlay
           meta={meta}
-          roster={ROSTER}
+          roster={roster}
           status={status}
           onExit={() => navigate('/', { replace: true })}
         />
