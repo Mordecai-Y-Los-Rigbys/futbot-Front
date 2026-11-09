@@ -117,11 +117,23 @@ describe('createLeagueMock', () => {
       participantsCount: 1,
       maxParticipants: leagueData.maxParticipants,
       private: false,
+      allowDraws: true,
     });
     await expect(getLeaguesMock('Liga manual test')).resolves.toMatchObject({
       total: 1,
       items: [expect.objectContaining({ id: league.id, name: leagueData.name })],
     });
+  });
+
+  it('respeta allowDraws: false al crear una liga mock', async () => {
+    const league = await createLeagueMock({
+      name: 'Liga mock penales',
+      maxParticipants: 8,
+      private: false,
+      allowDraws: false,
+    });
+
+    expect(league.allowDraws).toBe(false);
   });
 
   it.each([
