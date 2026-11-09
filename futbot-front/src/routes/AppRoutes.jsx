@@ -11,6 +11,7 @@ import Behaviors from '../pages/Behaviors';
 import BehaviorDetail from '../pages/BehaviorDetail';
 import Leagues from '../pages/Leagues';
 import CreateLeague from '../pages/CreateLeague';
+import LeagueLobby from '../pages/LeagueLobby';
 import Friendlies from '../pages/Friendlies';
 import CreateFriendly from '../pages/CreateFriendly';
 import JoinFriendly from '../pages/JoinFriendly';
@@ -52,9 +53,9 @@ export default function AppRoutes() {
             {/* Ligas */}
             <Route path="/leagues" element={<Leagues />} />
             <Route path="/leagues/create" element={<CreateLeague />} />
-            {/* TODO: reemplazar por las pantallas reales cuando existan */}
-            <Route path="/leagues/:id" element={<p>Detalle de liga (pendiente)</p>} />
-            <Route path="/leagues/:id/lobby" element={<p>Lobby de liga (pendiente)</p>} />
+            {/* Misma pantalla en las dos rutas: Leagues navega a /leagues/:id y CreateLeague a /leagues/:id/lobby.*/}
+            <Route path="/leagues/:id" element={<LeagueLobby />} />
+            <Route path="/leagues/:id/lobby" element={<LeagueLobby />} />
 
             {/* Amistosos */}
             <Route path="/friendlies" element={<Friendlies />} />

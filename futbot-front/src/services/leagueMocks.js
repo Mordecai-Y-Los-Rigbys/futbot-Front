@@ -2,11 +2,28 @@ import axios from 'axios';
 
 // Datos falsos para desarrollar sin backend. Se activan con VITE_USE_MOCKS=true
 // (ver leagueService.js). Imitan el contrato de la API y la forma de error de axios.
+//
+// Para probar a mano (usuario mock = id 1):
+//   - Liga 1: la creaste vos (id 1) -> no podés abandonar.
+//   - Liga 2: pública, creada por otro -> podés unirte.
+//   - Liga 4: privada, creada por otro -> la contraseña es 1234.
+// El desbloqueo de una liga privada se recuerda mientras no recargues la página
+// (acá vive en memoria; en el servidor vive en la sesión). El WebSocket simulado manda
+// el estado al conectar y uno nuevo cada vez que alguien se une.
+
+// ---------------------------------------------------------------------------
+// Constantes
+// ---------------------------------------------------------------------------
 
 // Mismo tamaño de página que el backend (se repite acá para no importar de leagueService
 // y evitar una dependencia circular).
 const MOCK_PAGE_SIZE = 50;
 const MOCK_DELAY_MS = 600; // lo bastante largo para ver el estado de carga
+const MOCK_LEAGUES_COUNT = 120; // subir a 120 para probar la paginación (3 páginas de 50)
+
+const MOCK_CURRENT_USER = { id: 1, username: 'santi', name: 'FC Santi', avatar: 1 };
+const MOCK_LEAGUE_PASSWORD = '1234';
+const MOCK_MIN_PARTICIPANTS = 3;
 
 // Búsquedas "trampa" para probar errores desde el input:
 //   "error"  -> responde 500
@@ -14,34 +31,7 @@ const MOCK_DELAY_MS = 600; // lo bastante largo para ver el estado de carga
 const MOCK_ERROR_SEARCH = 'error';
 const MOCK_UNAUTHORIZED_SEARCH = 'sesion';
 
-const THEMES = ['Liga de campeones', 'Copa del barrio', 'Torneo relámpago', 'Liga amateur', 'Súper liga', 'Liga de verano'];
-const CLUBS = ['Boca Juniors FC', 'River Plate FC', 'Racing Club', 'Independiente', 'San Lorenzo', 'Estudiantes', 'Vélez Sarsfield', 'Lanús'];
-const USERNAMES = ['pepe', 'luli', 'nico', 'sofi', 'tomi', 'cami'];
-const STATUSES = ['preparation'];
-const MAX_PARTICIPANTS = [8, 12, 16];
-
-// 120 ligas => 3 páginas de 50, así se prueba la paginación.
-const LEAGUES = Array.from({ length: 5 }, (_, i) => {
-  const status = STATUSES[i % STATUSES.length];
-  const maxParticipants = MAX_PARTICIPANTS[i % MAX_PARTICIPANTS.length];
-  const participantsCount =
-    status === 'preparation' ? Math.min(maxParticipants, 0) : maxParticipants;
-
-  return {
-    id: i + 1,
-    name: `${THEMES[i % THEMES.length]} #${i + 1}`,
-    creator: { id: (i % CLUBS.length) + 1, username: USERNAMES[i % USERNAMES.length], name: CLUBS[i % CLUBS.length] },
-    status,
-    participantsCount,
-    maxParticipants,
-    private: i % 3 === 0,
-    createdAt: new Date(Date.UTC(2026, 0, 1 + i)).toISOString(),
-  };
-});
-
-const httpError = (status, data = {}) =>
-  Object.assign(new Error(`HTTP ${status} (mock)`), { response: { status, data } });
-
+// Nombres de liga "trampa" para probar errores al crear.
 const MOCK_CREATE_ERRORS = {
   'mock-400': { status: 400, data: { code: 'invalidFieldType', message: 'Datos de prueba inválidos.' } },
   'mock-401': { status: 401, data: { message: 'La sesión mock expiró.' } },
@@ -54,7 +44,48 @@ const MOCK_CREATE_ERRORS = {
   },
 };
 
+const THEMES = ['Liga de campeones', 'Copa del barrio', 'Torneo relámpago', 'Liga amateur', 'Súper liga', 'Liga de verano'];
+const CLUBS = ['Boca Juniors FC', 'River Plate FC', 'Racing Club', 'Independiente', 'San Lorenzo', 'Estudiantes', 'Vélez Sarsfield', 'Lanús'];
+const USERNAMES = ['pepe', 'luli', 'nico', 'sofi', 'tomi', 'cami'];
+const STATUSES = ['preparation'];
+const MAX_PARTICIPANTS = [8, 12, 16];
+
+// ---------------------------------------------------------------------------
+// Datos y estado en memoria (se pierde al recargar la página)
+// ---------------------------------------------------------------------------
+
+const LEAGUES = Array.from({ length: MOCK_LEAGUES_COUNT }, (_, i) => {
+  const status = STATUSES[i % STATUSES.length];
+  const maxParticipants = MAX_PARTICIPANTS[i % MAX_PARTICIPANTS.length];
+
+  return {
+    id: i + 1,
+    name: `${THEMES[i % THEMES.length]} #${i + 1}`,
+    creator: { id: (i % CLUBS.length) + 1, username: USERNAMES[i % USERNAMES.length], name: CLUBS[i % CLUBS.length] },
+    status,
+    participantsCount: status === 'preparation' ? 0 : maxParticipants,
+    maxParticipants,
+    private: i % 3 === 0,
+    createdAt: new Date(Date.UTC(2026, 0, 1 + i)).toISOString(),
+  };
+});
+
 let nextLeagueId = LEAGUES.length + 1;
+
+const participantsByLeague = new Map(); // leagueId -> participantes
+const unlockedLeagues = new Set(); // ids de ligas privadas desbloqueadas en la "sesión"
+const socketListeners = new Set(); // sockets simulados abiertos
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+// Error con la forma que arma axios.
+const httpError = (status, data = {}) =>
+  Object.assign(new Error(`HTTP ${status} (mock)`), { response: { status, data } });
+
+// Igual, pero incluyendo el `code` del body de error del contrato.
+const codedError = (status, code) => httpError(status, { code, message: code });
 
 // Espera `ms`, pero se corta con un error de cancelación si se aborta el signal
 // (igual que haría axios), para que el AbortController de la pantalla funcione.
@@ -75,7 +106,31 @@ const wait = (ms, signal) =>
     signal?.addEventListener('abort', onAbort, { once: true });
   });
 
+function findLeague(id) {
+  const league = LEAGUES.find((item) => item.id === Number(id));
+  if (!league) throw codedError(404, 'notFound');
+  return league;
+}
+
+function participantsOf(league) {
+  if (!participantsByLeague.has(league.id)) {
+    participantsByLeague.set(league.id, [{ ...league.creator, avatar: 1 }]);
+  }
+  return participantsByLeague.get(league.id);
+}
+
+const isMemberOf = (league) =>
+  participantsOf(league).some((participant) => participant.id === MOCK_CURRENT_USER.id);
+
+const hasAccessTo = (league) =>
+  !league.private || isMemberOf(league) || unlockedLeagues.has(league.id);
+
+// Avisa a los sockets simulados abiertos que cambió una liga.
+const notifyLeagueChange = (league) => socketListeners.forEach((listener) => listener(league));
+
+// ---------------------------------------------------------------------------
 // GET /leagues
+// ---------------------------------------------------------------------------
 export async function getLeaguesMock(name, page = 1, { signal } = {}) {
   await wait(MOCK_DELAY_MS, signal);
 
@@ -98,7 +153,9 @@ export async function getLeaguesMock(name, page = 1, { signal } = {}) {
   };
 }
 
+// ---------------------------------------------------------------------------
 // POST /leagues. Usá mock-400, mock-401 o mock-409 como nombre para probar errores.
+// ---------------------------------------------------------------------------
 export async function createLeagueMock(leagueData) {
   await wait(MOCK_DELAY_MS);
 
@@ -108,7 +165,7 @@ export async function createLeagueMock(leagueData) {
   const league = {
     id: nextLeagueId,
     name: leagueData.name,
-    creator: { id: 1, username: 'vos', name: 'Tu equipo' },
+    creator: { id: MOCK_CURRENT_USER.id, username: MOCK_CURRENT_USER.username, name: MOCK_CURRENT_USER.name },
     status: 'preparation',
     participantsCount: 1,
     maxParticipants: leagueData.maxParticipants,
@@ -119,4 +176,110 @@ export async function createLeagueMock(leagueData) {
   LEAGUES.unshift(league);
 
   return { ...league, creator: { ...league.creator } };
+}
+
+// ---------------------------------------------------------------------------
+// GET /leagues/{id}
+// ---------------------------------------------------------------------------
+export async function getLeagueMock(id, { signal } = {}) {
+  await wait(MOCK_DELAY_MS, signal);
+  const league = findLeague(id);
+  return {
+    ...league,
+    creator: { ...league.creator },
+    participantsCount: participantsOf(league).length,
+    minParticipants: MOCK_MIN_PARTICIPANTS,
+    joined: isMemberOf(league),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// GET /leagues/{id}/participants
+// ---------------------------------------------------------------------------
+export async function getLeagueParticipantsMock(id, { signal } = {}) {
+  await wait(MOCK_DELAY_MS, signal);
+  const league = findLeague(id);
+
+  if (!hasAccessTo(league)) throw codedError(403, 'leagueAccessRequired');
+  return participantsOf(league).map((participant) => ({ ...participant }));
+}
+
+// ---------------------------------------------------------------------------
+// POST /leagues/{id}/access
+// ---------------------------------------------------------------------------
+export async function unlockLeagueMock(id, { password } = {}) {
+  await wait(MOCK_DELAY_MS);
+  const league = findLeague(id);
+
+  // Pública, creador o participante: no se evalúa la contraseña (igual que el servidor).
+  if (!league.private || isMemberOf(league)) {
+    if (league.private) unlockedLeagues.add(league.id);
+    return;
+  }
+  if (password !== MOCK_LEAGUE_PASSWORD) throw codedError(403, 'invalidLeaguePassword');
+  unlockedLeagues.add(league.id);
+}
+
+// ---------------------------------------------------------------------------
+// POST /leagues/{id}/participants
+// ---------------------------------------------------------------------------
+export async function joinLeagueMock(id, { password } = {}) {
+  await wait(MOCK_DELAY_MS);
+  const league = findLeague(id);
+  const participants = participantsOf(league);
+
+  if (league.status !== 'preparation') throw codedError(409, 'notInPreparation');
+  if (isMemberOf(league)) throw codedError(409, 'alreadyParticipating');
+  if (participants.length >= league.maxParticipants) throw codedError(409, 'leagueFull');
+  if (league.private && password !== MOCK_LEAGUE_PASSWORD) throw codedError(403, 'invalidLeaguePassword');
+
+  participants.push({ ...MOCK_CURRENT_USER });
+  if (league.private) unlockedLeagues.add(league.id); // unirse también desbloquea
+  notifyLeagueChange(league);
+}
+
+// ---------------------------------------------------------------------------
+// WebSocket /ws/leagues/{id}/participants: mismo contrato que el real (handshake con
+// cierres 4xxx, estado completo al conectar y un mensaje nuevo con cada cambio).
+// ---------------------------------------------------------------------------
+export function createLeagueSocketMock(id) {
+  const socket = { onopen: null, onmessage: null, onclose: null, close: () => teardown() };
+  let timer = null;
+  let listener = null;
+
+  const send = (league) =>
+    socket.onmessage?.({
+      data: JSON.stringify({
+        type: 'leagueParticipants',
+        leagueStatus: league.status,
+        participants: participantsOf(league).map((participant) => ({ ...participant })),
+      }),
+    });
+
+  const reject = (code, reason) => {
+    socket.onopen?.();
+    socket.onclose?.({ code, reason });
+  };
+
+  function teardown() {
+    clearTimeout(timer);
+    if (listener) socketListeners.delete(listener);
+    listener = null;
+  }
+
+  timer = setTimeout(() => {
+    const league = LEAGUES.find((item) => item.id === Number(id));
+    if (!league) return reject(4404, 'leagueNotFound');
+    if (!hasAccessTo(league)) return reject(4403, 'leagueAccessRequired');
+    if (league.status !== 'preparation') return reject(4409, 'leagueNotInPreparation');
+
+    socket.onopen?.();
+    send(league);
+    listener = (changed) => {
+      if (changed.id === league.id) send(league);
+    };
+    socketListeners.add(listener);
+  }, MOCK_DELAY_MS);
+
+  return socket;
 }
