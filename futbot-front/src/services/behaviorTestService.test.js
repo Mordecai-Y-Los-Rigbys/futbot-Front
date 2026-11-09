@@ -1,63 +1,52 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('./api', () => ({ default: { post: vi.fn(), defaults: { baseURL: 'http://localhost:8000' } } }));
+vi.mock('../config/mocks', () => ({ USE_MOCKS: false }));
+vi.mock('./matchService', () => ({ resolveWsBase: (base) => base.replace(/^http/, 'ws') }));
+
 import api from './api';
-import { getBehaviors } from './behaviorService';
+import {
+  buildTestWsUrl,
+  createBehaviorTestConnection,
+  mapTestFieldErrors,
+} from './behaviorTestService';
 
-vi.mock('./api', () => ({ default: { get: vi.fn() } }));
-
-describe('getBehaviors', () => {
-  beforeEach(() => {
-    api.get.mockReset();
-  });
-
-  it('pide GET /behaviors/me con el nombre y la página', async () => {
-    api.get.mockResolvedValue({ data: { items: [], total: 0 } });
-
-    await getBehaviors('def', 2);
-
-    expect(api.get).toHaveBeenCalledWith('/behaviors/me', {
-      params: { name: 'def', page: 2 },
-      signal: undefined,
+describe('mapTestFieldErrors', () => {
+  it('mapea cada campo de members[i] a su fila y un reason por campo', () => {
+    expect(
+      mapTestFieldErrors([
+        { field: 'members[0].playerId', reason: 'required' },
+        { field: 'members[2].behaviorId', reason: 'outOfRange' },
+        { field: 'members[0].playerId', reason: 'invalidType' },
+      ]),
+    ).toEqual({
+      'members.0.playerId': 'Completá este campo.',
+      'members.2.behaviorId': 'Valor fuera de rango.',
     });
   });
 
-  it('omite el parámetro name cuando viene vacío', async () => {
-    api.get.mockResolvedValue({ data: { items: [], total: 0 } });
-
-    await getBehaviors('', 1);
-
-    expect(api.get.mock.calls[0][1].params.name).toBeUndefined();
+  it('members / invalidTeam queda como error general', () => {
+    const errors = mapTestFieldErrors([{ field: 'members', reason: 'invalidTeam' }]);
+    expect(errors.members).toMatch(/delantero, un mediocampista y un defensor/);
   });
 
-  it('pasa el signal para poder cancelar la request', async () => {
-    api.get.mockResolvedValue({ data: { items: [], total: 0 } });
-    const controller = new AbortController();
-
-    await getBehaviors('', 1, { signal: controller.signal });
-
-    expect(api.get.mock.calls[0][1].signal).toBe(controller.signal);
-  });
-
-  it('filtra por tipo cuando se especifica', async () => {
-    api.get.mockResolvedValue({ data: { items: [], total: 0 } });
-
-    await getBehaviors('', 1, { type: 'playerBehavior' });
-
-    expect(api.get).toHaveBeenCalledWith('/behaviors/me', {
-      params: { name: undefined, page: 1, type: 'playerBehavior' },
-      signal: undefined,
+  it('un elemento que no es objeto (members[i]) se muestra en el jugador de esa fila', () => {
+    expect(mapTestFieldErrors([{ field: 'members[3]', reason: 'invalidType' }])).toEqual({
+      'members.3.playerId': 'Valor inválido.',
     });
   });
+});
 
-  it('devuelve el body de la respuesta', async () => {
-    const body = { items: [{ id: 1, name: 'Atacante' }], page: 1, pageSize: 50, total: 1 };
-    api.get.mockResolvedValue({ data: body });
+describe('createBehaviorTestConnection / buildTestWsUrl', () => {
+  it('hace POST /behaviors/{id}/test-connections con { members }', async () => {
+    const members = [{ playerId: 1, club: 'club1', role: 'forward', behaviorId: 7 }];
+    api.post.mockResolvedValue({ data: { tokenWs: 'abc' } });
 
-    await expect(getBehaviors('', 1)).resolves.toEqual(body);
+    await expect(createBehaviorTestConnection(7, members)).resolves.toEqual({ tokenWs: 'abc' });
+    expect(api.post).toHaveBeenCalledWith('/behaviors/7/test-connections', { members }, expect.anything());
   });
 
-  it('propaga el error si la request falla', async () => {
-    api.get.mockRejectedValue(new Error('boom'));
-
-    await expect(getBehaviors('', 1)).rejects.toThrow('boom');
+  it('arma la URL del canal de prueba con el id del behavior y el token', () => {
+    expect(buildTestWsUrl(7, 'a b')).toBe('ws://localhost:8000/ws/behaviors/7/test?token=a%20b');
   });
 });
