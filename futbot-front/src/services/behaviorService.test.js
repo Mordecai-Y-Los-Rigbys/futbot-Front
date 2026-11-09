@@ -37,6 +37,17 @@ describe('getBehaviors', () => {
     expect(api.get.mock.calls[0][1].signal).toBe(controller.signal);
   });
 
+  it('filtra por tipo cuando se especifica', async () => {
+    api.get.mockResolvedValue({ data: { items: [], total: 0 } });
+
+    await getBehaviors('', 1, { type: 'playerBehavior' });
+
+    expect(api.get).toHaveBeenCalledWith('/behaviors/me', {
+      params: { name: undefined, page: 1, type: 'playerBehavior' },
+      signal: undefined,
+    });
+  });
+
   it('devuelve el body de la respuesta', async () => {
     const body = { items: [{ id: 1, name: 'Atacante' }], page: 1, pageSize: 50, total: 1 };
     api.get.mockResolvedValue({ data: body });
