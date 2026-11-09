@@ -71,6 +71,23 @@ export async function reassignBehavior(matchId, { playerId, behaviorId }) {
 }
 
 /**
+ * Titulares de ambos clubes (GET /matches/{id}/lineups). Lo pueden pedir los dos usuarios
+ * del partido y, en partidos de liga, los espectadores con acceso a la liga.
+ * Refleja la alineación efectiva del momento (con las sustituciones ya aplicadas).
+ * Errores posibles: 401 (sin sesión), 403 (notAPlayerInMatch / leagueAccessRequired), 404 (no existe).
+ * No tiene 409: responde en cualquier estado del partido.
+ * @returns {Promise<{ club1: LineupPlayer[], club2: LineupPlayer[]|null }>}
+ *   donde LineupPlayer = { playerId, name, role } y role es forward | midfield | defense.
+ *   club2 es null en un amistoso sin rival.
+ */
+export async function getMatchLineups(matchId, { signal } = {}) {
+  if (USE_MOCKS) return getMatchLineupsMock(matchId, { signal });
+
+  const { data } = await api.get(`/matches/${encodeURIComponent(matchId)}/lineups`, { signal });
+  return data;
+}
+
+/**
  * Base absoluta (ws:// o wss://) para el WebSocket.
  * - http(s)://...  -> se cambia el protocolo (http -> ws, https -> wss).
  * - ws(s)://...    -> se usa tal cual.

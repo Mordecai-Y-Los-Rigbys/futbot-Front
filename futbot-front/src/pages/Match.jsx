@@ -1,17 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { lineupsToPlayers } from '../utils/lineups';
 import axios from 'axios';
 import useMatchWebSocket, { INITIAL_META } from '../hooks/useMatchWebSocket';
-import { getMatch } from '../services/matchService';
+import { getMatch, getMatchLineups } from '../services/matchService';
 import Pitch2DCanvas from '../components/Pitch2DCanvas';
 import ScoreboardOverlay from '../components/ScoreboardOverlay';
 import MatchBehaviorPanel from '../components/MatchBehaviorPanel';
 import './Match.css';
 
-// TODO: `players` (nombre, atributos y behavior por jugador) sigue sin contrato:
-// GET /matches/{id} solo trae los clubes.
+// `players` (nombre, rol y club de cada titular) sale de GET /matches/{id}/lineups.
+// TODO: atributos y behavior por jugador siguen sin contrato.
 const EMPTY_PLAYERS = {};
-const rosterFor = (match) => ({ clubs: [match?.club1 ?? null, match?.club2 ?? null], players: EMPTY_PLAYERS });
+const rosterFor = (match, players = EMPTY_PLAYERS) => ({
+  clubs: [match?.club1 ?? null, match?.club2 ?? null],
+  players,
+});
 
 // Cancha sin ticks: solo dibuja el campo (para la pantalla final de un partido ya terminado).
 const EMPTY_STREAM = { current: { prev: null, curr: null, currAt: 0, intervalMs: 50, snapNext: false } };
@@ -31,7 +35,8 @@ function LiveMatch({ id, initialMatch }) {
   const navigate = useNavigate();
   const { status, streamRef, meta, fatal, role } = useMatchWebSocket(id);
   const [match, setMatch] = useState(initialMatch);
-  const roster = useMemo(() => rosterFor(match), [match]);
+  const [players, setPlayers] = useState(EMPTY_PLAYERS);
+  const roster = useMemo(() => rosterFor(match, players), [match, players]);
 
   // true cuando llegó el primer tick: en un amistoso, el rival ya se unió.
   const started = meta.phase !== null;
@@ -53,6 +58,26 @@ function LiveMatch({ id, initialMatch }) {
     return () => controller.abort();
   }, [id, started]);
 
+    const paused = meta.phase === 'paused';
+
+  // Nombres de los titulares (GET /matches/{id}/lineups). Se pide:
+  //  - al montar;
+  //  - al llegar el primer tick (`started`): en un amistoso club2 es null hasta que el rival se une;
+  //  - al terminar cada pausa: las sustituciones se aplican en las pausas y el suplente que
+  //    entra toma el rol de titular. Durante la pausa no se pide (el efecto sale antes).
+  // Cualquier error (401, 403, 404, red) solo deja la cancha sin nombres: la salida del
+  // partido la decide únicamente el WebSocket (fatal). Se conserva el último roster válido.
+  useEffect(() => {
+    if (paused) return undefined;
+    const controller = new AbortController();
+    getMatchLineups(id, { signal: controller.signal })
+      .then((lineups) => {
+        if (controller.signal.aborted) return;
+        setPlayers(lineupsToPlayers(lineups));
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [id, started, paused]);
 
   // Cierre fatal (1008, 4xxx, waitExpired, 401...): sale del partido con un aviso.
   useEffect(() => {
