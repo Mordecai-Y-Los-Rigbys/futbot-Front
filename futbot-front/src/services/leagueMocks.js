@@ -165,6 +165,16 @@ const MOCK_FIXTURE = [
     result: null,
   },
 ];
+// ---------------------------------------------------------------------------
+// Ranking de liga
+// ---------------------------------------------------------------------------
+const MOCK_LEAGUE_RANKING = [
+  { name: 'Boca Juniors FC', played: 2, won: 2, drawn: 0, lost: 0, goalDifference:  3, score: 6 },
+  { name: 'Racing Club',     played: 2, won: 1, drawn: 0, lost: 1, goalDifference:  1, score: 3 },
+  { name: 'River Plate FC',  played: 2, won: 1, drawn: 0, lost: 1, goalDifference: -1, score: 3 },
+  { name: 'Independiente',   played: 2, won: 0, drawn: 0, lost: 2, goalDifference: -3, score: 0 },
+];
+
 
 function findLeague(id) {
   const league = LEAGUES.find((item) => item.id === Number(id));
@@ -341,6 +351,27 @@ export function createLeagueSocketMock(id, channel) {
       }, 200);
       return;
     }
+    if (channel === 'matches/next') {
+      const nextMatch = MOCK_FIXTURE.find((m) => m.status === 'started' || m.status === 'scheduled') ?? null;
+      socket.onopen?.();
+      setTimeout(() => {
+        socket.onmessage?.({
+          data: JSON.stringify({ type: 'leagueNextMatch', match: nextMatch }),
+        });
+      }, 200);
+      return;
+    }
+    
+    if (channel === 'ranking') {
+      socket.onopen?.();
+      setTimeout(() => {
+        socket.onmessage?.({
+          data: JSON.stringify({ type: 'leagueRanking', ranking: MOCK_LEAGUE_RANKING.map((r) => ({ ...r })) }),
+        });
+      }, 200);
+      return;
+    }
+
 
     const league = LEAGUES.find((item) => item.id === Number(id));
     if (!league) return reject(4404, 'leagueNotFound');
@@ -411,4 +442,33 @@ export async function startLeagueMock(id) {
   if (participants.length < MOCK_MIN_PARTICIPANTS) throw codedError(409, 'notEnoughParticipants');
   league.status = 'started';
   notifyLeagueChange(league);
+}
+
+// ---------------------------------------------------------------------------
+// GET /leagues/{id}/ranking
+// ---------------------------------------------------------------------------
+export async function getLeagueRankingMock(id, { signal } = {}) {
+  await wait(MOCK_DELAY_MS, signal);
+  const league = findLeague(id);
+  if (league.status === 'preparation') throw codedError(409, 'leagueNotStarted');
+  return MOCK_LEAGUE_RANKING.map((r) => ({ ...r }));
+}
+
+// ---------------------------------------------------------------------------
+// WS /ws/leagues/{id}/ranking — manda el ranking completo al conectar
+// ---------------------------------------------------------------------------
+export function createLeagueRankingSocketMock() {
+  const socket = { onopen: null, onmessage: null, onclose: null, close: () => clearTimeout(timer) };
+  let timer;
+
+  timer = setTimeout(() => {
+    socket.onopen?.();
+    setTimeout(() => {
+      socket.onmessage?.({
+        data: JSON.stringify({ type: 'leagueRanking', ranking: MOCK_LEAGUE_RANKING.map((r) => ({ ...r })) }),
+      });
+    }, 200);
+  }, MOCK_DELAY_MS);
+
+  return socket;
 }

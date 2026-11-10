@@ -1,0 +1,12 @@
+.league-standings-page {
+  max-width: 700px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+.league-standings-page h1 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #1b4e0e;
+  margin-bottom: 1rem;
+}
