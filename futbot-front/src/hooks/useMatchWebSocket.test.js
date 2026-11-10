@@ -10,14 +10,21 @@ vi.mock('../services/matchService', () => ({
 
 const makeSocket = () => ({ onopen: null, onmessage: null, onclose: null, close: vi.fn() });
 
-const setup = async () => {
+const setup = async (connection = { tokenWs: 'tok' }) => {
   const socket = makeSocket();
-  createMatchConnection.mockResolvedValue({ tokenWs: 'tok' });
+  createMatchConnection.mockResolvedValue(connection);
   openMatchSocket.mockReturnValue(socket);
   const hook = renderHook(() => useMatchWebSocket('123'));
-  await waitFor(() => expect(openMatchSocket).toHaveBeenCalledWith('123', 'tok'));
+  await waitFor(() => expect(openMatchSocket).toHaveBeenCalledWith('123', connection.tokenWs));
   return { socket, ...hook };
 };
+
+const tick = (overrides = {}) => ({
+  data: JSON.stringify({
+    type: 'tick', score1: 0, score2: 0, elapsedTime: 0, phase: 'playing',
+    players: [], ballPosition: { x: 50, y: 30 }, event: null, ...overrides,
+  }),
+});
 
 describe('useMatchWebSocket', () => {
   beforeEach(() => {

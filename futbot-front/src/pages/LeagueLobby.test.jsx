@@ -15,6 +15,12 @@ vi.mock('../components/LeagueWaitingRoom', () => ({
   ),
 }));
 vi.mock('../services/leagueService');
+vi.mock('../hooks/useLeagueSocket', () => ({
+  default: () => ({ message: null, status: 'connecting', closeInfo: null, retry: vi.fn() }),
+}));
+vi.mock('../components/NextMatchBanner', () => ({ default: () => null }));
+vi.mock('../components/LeagueFixture', () => ({ default: () => <p>fixture</p> }));
+vi.mock('../components/LeagueStandings', () => ({ default: () => <p>ranking</p> }));
 
 const makeLeague = (overrides = {}) => ({
   id: 5,
@@ -71,14 +77,14 @@ describe('LeagueLobby', () => {
     expect(await screen.findByText('Sala de espera de Liga del barrio')).toBeInTheDocument();
   });
 
-  it.each(['started', 'finished'])('liga %s: ya no muestra la sala de espera y avisa', async (status) => {
+  it.each(['started', 'finished'])('liga %s: muestra el fixture en vez de la sala de espera', async (status) => {
     getLeague.mockResolvedValue(makeLeague({ status }));
 
     renderLobby();
 
-    expect(await screen.findByText('Esta liga ya no está en preparación.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Liga del barrio' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Fixture' })).toBeInTheDocument();
     expect(screen.queryByText(/sala de espera/i)).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /volver a ligas/i })).toHaveAttribute('href', '/leagues');
   });
 
   it('liga cancelada: avisa que fue cancelada', async () => {
@@ -97,7 +103,7 @@ describe('LeagueLobby', () => {
     renderLobby();
     await userEvent.click(await screen.findByRole('button', { name: /cambió la liga/i }));
 
-    expect(await screen.findByText('Esta liga ya no está en preparación.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Liga del barrio' })).toBeInTheDocument();
     expect(getLeague).toHaveBeenCalledTimes(2);
   });
 

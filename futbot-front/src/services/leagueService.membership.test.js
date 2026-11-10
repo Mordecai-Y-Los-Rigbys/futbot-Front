@@ -4,6 +4,7 @@ import {
   getLeague,
   getLeagueParticipants,
   joinLeague,
+  leaveLeague,
   unlockLeague,
 } from './leagueService';
 
@@ -119,6 +120,9 @@ describe('joinLeague', () => {
     api.post.mockRejectedValue(error);
 
     await expect(joinLeague(5, { members })).rejects.toBe(error);
+  });
+});
+
 describe('leaveLeague', () => {
   beforeEach(() => {
     api.delete.mockReset();

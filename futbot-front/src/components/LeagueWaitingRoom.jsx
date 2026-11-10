@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import JoinLeagueModal from './JoinLeagueModal';
 import LeaguePasswordForm from './LeaguePasswordForm';
-import { Link } from "react-router";
 import Modal from './Modal';
 import { useAuth } from '../context/AuthContext.jsx';
 import useLeagueSocket from '../hooks/useLeagueSocket';

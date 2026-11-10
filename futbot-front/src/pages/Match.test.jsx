@@ -1,11 +1,20 @@
+import { AuthContext } from '../context/AuthContext.jsx';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Match from './Match';
-import { getMatch, getMatchLineups } from '../services/matchService';
+import { getMatch, getMatchLineups, getMatchTeam, getSubstitutions, setSubstitution } from '../services/matchService';
 import useMatchWebSocket, { INITIAL_META } from '../hooks/useMatchWebSocket';
 
-vi.mock('../services/matchService', () => ({ getMatch: vi.fn(), getMatchLineups: vi.fn() }));
+vi.mock('../services/matchService', () => ({
+  getMatch: vi.fn(),
+  getMatchLineups: vi.fn(),
+  getMatchTeam: vi.fn(),
+  getSubstitutions: vi.fn(),
+  setSubstitution: vi.fn(),
+}));
+// Tiene sus propios tests y también pide el equipo: contaría de más en getMatchTeam.
+vi.mock('../components/MatchBehaviorPanel', () => ({ default: () => null }));
 vi.mock('../hooks/useMatchWebSocket', async (importOriginal) => ({
   ...(await importOriginal()),
   default: vi.fn(),
@@ -29,14 +38,21 @@ const LINEUPS = {
   club2: null,
 };
 
+const authValue = { user: { id: 1, username: 'santi' }, setUser: vi.fn(), isCheckingSession: false };
+
 const ui = () => (
-  <MemoryRouter initialEntries={['/matches/5']}>
-    <Routes>
-      <Route path="/matches/:id" element={<Match />} />
-    </Routes>
-  </MemoryRouter>
+  <AuthContext.Provider value={authValue}>
+    <MemoryRouter initialEntries={['/matches/5']}>
+      <Routes>
+        <Route path="/matches/:id" element={<Match />} />
+      </Routes>
+    </MemoryRouter>
+  </AuthContext.Provider>
 );
-const renderMatch = () => render(ui());
+const renderMatch = () => {
+  const view = render(ui());
+  return { ...view, refresh: () => view.rerender(ui()) };
+};
 
 const mockWs = (meta = {}) =>
   useMatchWebSocket.mockReturnValue({

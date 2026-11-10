@@ -11,6 +11,7 @@ vi.mock('../services/behaviorService', () => ({
   PAGE_SIZE: 50,
 }));
 vi.mock('../components/BehaviorCodeEditor', () => import('../test/BehaviorCodeEditorMock'));
+vi.mock('../components/TestBehaviorButton', () => ({ default: () => null }));
 
 const response = (items) => ({ items, page: 1, pageSize: 50, total: items.length });
 const flush = () => act(async () => {});
