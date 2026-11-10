@@ -89,16 +89,6 @@ const httpError = (status, data = {}) =>
 // Igual, pero incluyendo el `code` del body de error del contrato.
 const codedError = (status, code) => httpError(status, { code, message: code });
 
-const participantsByLeague = new Map(); // leagueId -> participantes
-const unlockedLeagues = new Set(); // ids de ligas privadas desbloqueadas en la "sesión"
-const socketListeners = new Set(); // sockets simulados abiertos
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-// Igual, pero incluyendo el `code` del body de error del contrato.
-const codedError = (status, code) => httpError(status, { code, message: code });
 
 // Espera `ms`, pero se corta con un error de cancelación si se aborta el signal
 // (igual que haría axios), para que el AbortController de la pantalla funcione.
