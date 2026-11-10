@@ -15,6 +15,8 @@ const CLOSE_MESSAGES = {
   matchCancelled: 'El partido fue cancelado.',
   tooManyConnections: 'Error de conexión: ya tenés demasiadas pestañas abiertas con este partido.',
   waitExpired: 'Nadie se unió a tu amistoso en 15 minutos y el partido fue cancelado.',
+  leagueAccessRequired: 'Este partido es de una liga privada: necesitás acceso a la liga para verlo.',
+  notAPlayerInMatch: 'Este amistoso no se puede ver: solo lo juegan sus dos clubes.',
 };
 
 // Respaldo por código cuando el cierre no trae un `reason` conocido.
@@ -26,11 +28,18 @@ const CLOSE_CODE_MESSAGES = {
   4429: 'Error de conexión: ya tenés demasiadas pestañas abiertas con este partido.',
 };
 
+const VALID_ROLES = ['player', 'spectator'];
+
 const REST_ERROR_MESSAGES = {
   401: 'Tu sesión expiró. Iniciá sesión de nuevo.',
   403: 'No participás en este partido.',
   404: 'El partido no existe.',
   409: 'Partido finalizado o cancelado.',
+};
+
+// Un 403 puede ser de una liga privada (espectador sin acceso) o de un amistoso ajeno.
+const REST_403_MESSAGES = {
+  leagueAccessRequired: 'Este partido es de una liga privada: necesitás acceso a la liga para verlo.',
 };
 
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
@@ -77,6 +86,7 @@ export default function useMatchWebSocket(matchId) {
   const [meta, setMeta] = useState(INITIAL_META);
   const [status, setStatus] = useState('connecting');
   const [fatal, setFatal] = useState(null);
+  const [role, setRole] = useState(null);
 
   useEffect(() => {
     let disposed = false;
@@ -90,6 +100,7 @@ export default function useMatchWebSocket(matchId) {
     setMeta(INITIAL_META);
     setStatus('connecting');
     setFatal(null);
+    setRole(null);
 
     const fail = (message, to = '/') => {
       if (disposed) return;
@@ -194,9 +205,10 @@ export default function useMatchWebSocket(matchId) {
 
     async function connect() {
       try {
-        const { tokenWs } = await createMatchConnection(matchId);
+        const { tokenWs, role: connectionRole } = await createMatchConnection(matchId);
         if (disposed) return;
-        setRole(connectionRole ?? null);
+        // Un rol desconocido queda en null: nunca se interpreta como jugador.
+        setRole(VALID_ROLES.includes(connectionRole) ? connectionRole : null);
 
         socket = openMatchSocket(matchId, tokenWs);
         socket.onopen = () => {
@@ -216,7 +228,9 @@ export default function useMatchWebSocket(matchId) {
       } catch (err) {
         if (disposed) return;
         const httpStatus = err.response?.status;
-        const message = REST_ERROR_MESSAGES[httpStatus];
+        const message =
+          (httpStatus === 403 && REST_403_MESSAGES[err.response?.data?.code]) ||
+          REST_ERROR_MESSAGES[httpStatus];
         if (message) fail(message, httpStatus === 401 ? '/login' : '/');
         else scheduleRetry(); // sin respuesta o 5xx
       }
