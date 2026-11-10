@@ -55,6 +55,8 @@ export const INITIAL_META = {
   pauseReason: null, // 'hydration' | 'halftime' | null (null también si nos perdimos el evento pause)
   pauseRemaining: null, // segundos que faltan, de pauseRemainingSeconds
   pauseCount: 0, // cuántas pausas vio esta conexión; sirve de key para remontar el panel
+  pausesLeft: null, // pausas que todavía no empezaron (3 a 0); null = todavía no llegó ningún tick
+  teamVersion: 0, // sube con cada `pause` y cada `periodStart` ≥ 2: ahí cambia el equipo (se aplicó una sustitución)
 };
 
 /**
@@ -62,6 +64,7 @@ export const INITIAL_META = {
  *
  * Devuelve:
  * - status: 'connecting' | 'open' | 'reconnecting' | 'closed'
+ * - role: 'player' | 'spectator' | null (null hasta que responde POST /matches/{id}/connections)
  * - streamRef: ref MUTABLE con los últimos ticks para el canvas (no provoca re-render).
  *   { prev, curr, currAt, intervalMs, snapNext }
  * - meta: marcador, reloj, fase, etc. Solo cambia cuando cambia algo visible (≈1/seg),
@@ -135,13 +138,18 @@ export default function useMatchWebSocket(matchId) {
         penaltyCurrent: sameCurrent(prev.penaltyCurrent, current) ? prev.penaltyCurrent : current,
         penaltyCountdownSeconds: tick.penaltyCountdownSeconds ?? null,
         penaltyRemainingSeconds: tick.penaltyRemainingSeconds ?? null,
+        pausesLeft: Number.isInteger(tick.pausesLeft) ? tick.pausesLeft : null,
       };
       const e = tick.event;
       if (e?.type === 'penaltiesStart') next.penaltiesBanner = { id: (prev.penaltiesBanner?.id ?? 0) + 1 };
       if (e?.type === 'periodStart') {
         next.periodNumber = e.periodNumber;
         next.countdown = { seconds: e.countdownSeconds, startedAt: Date.now() };
+        // Al terminar cada pausa (períodos 2 a 4) el equipo ya refleja la sustitución aplicada.
+        if (e.periodNumber >= 2) next.teamVersion = prev.teamVersion + 1;
       }
+      // Al empezar la pausa se aplica la sustitución pendiente.
+      if (e?.type === 'pause') next.teamVersion = prev.teamVersion + 1;
       if (e?.type === 'goal') next.goal = { id: (prev.goal?.id ?? 0) + 1, scoringClub: e.scoringClub };
       if (e?.type === 'matchEnd') {
         next.result = e.result;
@@ -188,6 +196,7 @@ export default function useMatchWebSocket(matchId) {
       try {
         const { tokenWs } = await createMatchConnection(matchId);
         if (disposed) return;
+        setRole(connectionRole ?? null);
 
         socket = openMatchSocket(matchId, tokenWs);
         socket.onopen = () => {

@@ -48,7 +48,42 @@ export async function createMatchConnectionMock(matchId) {
 
   return {
     tokenWs: `mock_ws_token_match_${matchId}_${Date.now()}`,
+    role: matchId === 'spectator' ? 'spectator' : 'player',
   };
+}
+
+const MOCK_MEMBERS = [
+  { playerId: 1, name: 'Lionel Messi', role: 'forward' },
+  { playerId: 2, name: 'Rodrigo De Paul', role: 'midfield' },
+  { playerId: 3, name: 'Cristian Romero', role: 'defense' },
+  { playerId: 7, name: 'Ángel Di María', role: 'substitute' },
+  { playerId: 8, name: 'Julián Álvarez', role: 'substitute' },
+  { playerId: 9, name: 'Emiliano Martínez', role: 'substitute' },
+].map((m) => ({ ...m, behavior: { id: m.playerId, name: 'Ofensivo', type: 'playerBehavior' } }));
+const matchBehaviorIds = new Map();
+const behaviorKey = (matchId, playerId) => `${matchId}:${playerId}`;
+
+export async function getMatchTeamMock(matchId) {
+  await wait(200);
+
+  if (matchId === 'error403') throw httpError(403, { code: 'notAPlayerInMatch' });
+  if (matchId === 'error404') throw httpError(404, { message: 'El partido no existe.' });
+  if (matchId === 'error500') throw httpError(500, { message: 'Error interno al cargar el equipo.' });
+
+  return { members: MOCK_MEMBERS, coachBehavior: null };
+}
+
+export async function getMatchBehaviorMock(matchId, playerId) {
+  await wait(200);
+  const behaviorId = matchBehaviorIds.get(behaviorKey(matchId, playerId)) ?? playerId;
+  const { name, code } = await getBehaviorByIdMock(behaviorId);
+  return { name, code };
+}
+
+export async function reassignBehaviorMock(matchId, { playerId, behaviorId }) {
+  await wait(200);
+  await getBehaviorByIdMock(behaviorId);
+  matchBehaviorIds.set(behaviorKey(matchId, playerId), behaviorId);
 }
 
 // Socket falso para desarrollar sin backend: abre y queda en silencio,
@@ -64,6 +99,22 @@ export function createMatchSocketMock() {
     },
   };
   return socket;
+}
+
+// Ids "trampa": error400 -> 400 notStarter, error403, error404, error409 (matchNotStarted).
+export async function setSubstitutionMock(matchId) {
+  await wait(300);
+
+  if (matchId === 'error400') {
+    throw httpError(400, {
+      code: 'invalidFields',
+      message: 'Revisá los campos marcados.',
+      errors: [{ field: 'starterId', reason: 'notStarter' }],
+    });
+  }
+  if (matchId === 'error403') throw httpError(403, { code: null, message: 'No sos jugador de este partido.' });
+  if (matchId === 'error404') throw httpError(404, { code: null, message: 'El partido no existe.' });
+  if (matchId === 'error409') throw httpError(409, { code: 'noPausesLeft', message: 'No quedan pausas.' });
 }
 
 // Ids "trampa": 4031 -> 403, 4041 -> 404, 4091 -> 409, 0 -> ambos clubes sin cambios.

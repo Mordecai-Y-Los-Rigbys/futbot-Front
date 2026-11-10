@@ -126,6 +126,20 @@
   overflow-wrap: anywhere;
 }
 
+.leagues__mode {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border: 1px solid var(--accent-border);
+  border-radius: 999px;
+  background: var(--accent-bg);
+  color: var(--text-h);
+  font-size: 12px;
+  font-weight: 400;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
 .leagues__creator {
   grid-area: creator;
   font-size: 14px;

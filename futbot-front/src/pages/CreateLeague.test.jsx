@@ -202,6 +202,7 @@ describe('CreateLeague', () => {
       matchDuration: 10,
       private: false,
       password: null,
+      allowDraws: true,
       members: [
         { playerId: 1, role: 'forward', behaviorId: 11 },
         { playerId: 2, role: 'midfield', behaviorId: 11 },
@@ -212,6 +213,53 @@ describe('CreateLeague', () => {
       ],
     });
     expect(screen.getByLabelText('Ruta actual')).toHaveTextContent('/leagues/42/lobby');
+  });
+
+  it('el selector de modo arranca en "Normal" y muestra el texto de ayuda debajo', async () => {
+    await renderPage();
+
+    const mode = screen.getByLabelText('Modo de la liga');
+    expect(mode).toHaveValue('normal');
+    expect(mode).toHaveDisplayValue('Normal (puede haber empates)');
+    expect(screen.getByRole('option', { name: 'Normal (puede haber empates)' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('option', { name: 'Penales (los empates se definen por penales)' }),
+    ).toBeInTheDocument();
+
+    const help = screen.getByText(
+      'Si la tanda de penales queda empatada, el ganador se define por sorteo.',
+    );
+    expect(help).toBeInTheDocument();
+    expect(mode).toHaveAccessibleDescription(help.textContent);
+    expect(
+      mode.compareDocumentPosition(help) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it('con el modo "Normal" envía allowDraws: true', async () => {
+    createLeague.mockResolvedValue({ id: 45 });
+    await renderPage();
+    fillLeagueDetails();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Crear Liga' }));
+    await flushPromises();
+
+    expect(createLeague).toHaveBeenCalledWith(expect.objectContaining({ allowDraws: true }));
+  });
+
+  it('con el modo "Penales" envía allowDraws: false', async () => {
+    createLeague.mockResolvedValue({ id: 46 });
+    await renderPage();
+    fillLeagueDetails();
+    fireEvent.change(screen.getByLabelText('Modo de la liga'), { target: { value: 'penalties' } });
+    expect(screen.getByLabelText('Modo de la liga')).toHaveDisplayValue(
+      'Penales (los empates se definen por penales)',
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Crear Liga' }));
+    await flushPromises();
+
+    expect(createLeague).toHaveBeenCalledWith(expect.objectContaining({ allowDraws: false }));
   });
 
   it('envía la contraseña cuando la liga es privada', async () => {
@@ -271,3 +319,4 @@ describe('CreateLeague', () => {
     expect(screen.getByRole('button', { name: 'Crear Liga' })).toBeEnabled();
   });
 });
+

@@ -6,6 +6,8 @@ import useMatchWebSocket, { INITIAL_META } from '../hooks/useMatchWebSocket';
 import { getMatch, getMatchLineups } from '../services/matchService';
 import Pitch2DCanvas from '../components/Pitch2DCanvas';
 import ScoreboardOverlay from '../components/ScoreboardOverlay';
+import MatchBehaviorPanel from '../components/MatchBehaviorPanel';
+import SubstitutionControl from '../components/SubstitutionControl';
 import './Match.css';
 
 // `players` (nombre, rol y club de cada titular) sale de GET /matches/{id}/lineups.
@@ -86,6 +88,8 @@ function LiveMatch({ id, initialMatch }) {
 
   return (
     <main className="match">
+      {/* Fuera de la cancha: solo lo ven los jugadores (role === 'player'). */}
+      <SubstitutionControl matchId={id} role={role} meta={meta} roster={roster} />
       <div className="match__stage">
         <Pitch2DCanvas streamRef={streamRef} roster={roster} />
         <ScoreboardOverlay
@@ -94,6 +98,7 @@ function LiveMatch({ id, initialMatch }) {
           status={status}
           onExit={() => navigate('/', { replace: true })}
         />
+        <MatchBehaviorPanel matchId={id} canManage={status === 'open'&& role === 'player'} teamVersion={meta.teamVersion} />
       </div>
     </main>
   );

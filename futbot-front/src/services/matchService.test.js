@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import api from './api';
-import { buildWsUrl } from './matchService';
+import { buildWsUrl, getMatchBehavior, getMatchTeam, reassignBehavior, setSubstitution } from './matchService';
 
 vi.mock('./api', () => ({ default: { defaults: { baseURL: '' } } }));
 
@@ -43,5 +43,77 @@ describe('buildWsUrl', () => {
   it('codifica el id del partido y el token', () => {
     api.defaults.baseURL = 'http://localhost:8000';
     expect(buildWsUrl('a/b', 't o+k')).toBe('ws://localhost:8000/ws/matches/a%2Fb?token=t%20o%2Bk');
+  });
+});
+
+describe('servicios de comportamiento del partido', () => {
+  beforeEach(() => {
+    api.get.mockReset();
+    api.put.mockReset();
+  });
+
+  it('obtiene el equipo (members) y permite cancelar la request', async () => {
+    const team = { members: [], coachBehavior: null };
+    const controller = new AbortController();
+    api.get.mockResolvedValue({ data: team });
+
+    await expect(getMatchTeam('match/7', { signal: controller.signal })).resolves.toBe(team);
+
+    expect(api.get).toHaveBeenCalledWith('/matches/match%2F7/team', { signal: controller.signal });
+  });
+
+  it('obtiene el comportamiento actual de un titular', async () => {
+    const behavior = { name: 'Defensivo', code: 'return;' };
+    api.get.mockResolvedValue({ data: behavior });
+
+    await expect(getMatchBehavior(7, 3)).resolves.toBe(behavior);
+
+    expect(api.get).toHaveBeenCalledWith('/matches/7/behavior', {
+      params: { playerId: 3 },
+      signal: undefined,
+    });
+  });
+
+  it('envía el titular y el comportamiento elegido', async () => {
+    api.put.mockResolvedValue({ status: 204 });
+
+    await reassignBehavior(7, { playerId: 3, behaviorId: 22 });
+
+    expect(api.put).toHaveBeenCalledWith('/matches/7/behavior', { playerId: 3, behaviorId: 22 });
+  });
+
+  it('propaga errores de la API', async () => {
+    api.put.mockRejectedValue(new Error('boom'));
+
+    await expect(reassignBehavior(7, { playerId: 3, behaviorId: 22 })).rejects.toThrow('boom');
+  });
+});
+
+describe('setSubstitution', () => {
+  beforeEach(() => {
+    api.put.mockReset();
+  });
+
+  it('hace PUT /matches/{id}/substitutions con starterId y substituteId', async () => {
+    api.put.mockResolvedValue({ status: 204 });
+
+    await expect(setSubstitution(7, { starterId: 1, substituteId: 8 })).resolves.toBeUndefined();
+
+    expect(api.put).toHaveBeenCalledWith('/matches/7/substitutions', { starterId: 1, substituteId: 8 });
+  });
+
+  it('codifica el id del partido', async () => {
+    api.put.mockResolvedValue({ status: 204 });
+
+    await setSubstitution('a/b', { starterId: 1, substituteId: 8 });
+
+    expect(api.put).toHaveBeenCalledWith('/matches/a%2Fb/substitutions', { starterId: 1, substituteId: 8 });
+  });
+
+  it('propaga los errores de la API (400 / 403 / 404 / 409)', async () => {
+    const error = { response: { status: 409, data: { code: 'noPausesLeft' } } };
+    api.put.mockRejectedValue(error);
+
+    await expect(setSubstitution(7, { starterId: 1, substituteId: 8 })).rejects.toBe(error);
   });
 });
