@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Link, Outlet } from 'react-router-dom';
 import axios from 'axios';
 import { getBehaviors, PAGE_SIZE } from '../services/behaviorService';
-import TestBehaviorButton from '../components/TestBehaviorButton';
 import BehaviorFormDialog from '../components/BehaviorFormDialog';
 import './Behaviors.css';
 
@@ -139,11 +138,6 @@ export default function Behaviors() {
           <button type="button" aria-label="Cerrar aviso" onClick={() => setNotice(null)}>×</button>
         </div>
       )}
-
-      {/* Barra de acciones: un único botón "Probar comportamiento" (no va por fila ni en el detalle). */}
-      <div className="behaviors__actions">
-        <TestBehaviorButton />
-      </div>
 
       <div className="behaviors__search">
         <label htmlFor="behavior-search">Buscar por nombre</label>
