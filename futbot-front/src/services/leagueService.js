@@ -6,6 +6,7 @@ import {
   unlockLeagueMock,
   leaveLeagueMock,
   joinLeagueMock,
+  getLeagueFixtureMock,
   startLeagueMock,
 } from './leagueMocks';
 import { USE_MOCKS } from '../config/mocks';
@@ -134,6 +135,15 @@ export async function leaveLeague(id) {
 }
 
 /**
+ * Obtiene el fixture de una liga (GET /leagues/{id}/fixture).
+ * Errores posibles: 401, 404, 409 (code: leagueNotStarted — liga en preparation).
+ */
+export async function getLeagueFixture(id, { signal } = {}) {
+  if (USE_MOCKS) return getLeagueFixtureMock(id, { signal });
+
+  const { data } = await api.get(`/leagues/${encodeURIComponent(id)}/fixture`, { signal });
+  return data;
+}
  * Inicia una liga (POST /leagues/{id}/start). Solo el creador.
  * Requiere preparation y al menos minParticipants participantes.
  * Errores posibles: 401, 403, 404, 409 (code: notInPreparation | notEnoughParticipants).

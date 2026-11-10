@@ -7,6 +7,7 @@ const MAX_RETRIES = 3;
 const MESSAGE_TYPES = {
   participants: 'leagueParticipants',
   'matches/next': 'leagueNextMatch',
+  fixture: 'leagueFixture',
 };
 
 /**
