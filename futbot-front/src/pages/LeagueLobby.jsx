@@ -2,6 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import LeagueWaitingRoom from '../components/LeagueWaitingRoom';
 import { getLeague } from '../services/leagueService';
+import LeagueFixture from '../components/LeagueFixture';
+import useLeagueSocket from '../hooks/useLeagueSocket';
+
 
 const LOAD_ERROR_MESSAGE = 'No pudimos cargar la liga. Revisá tu conexión e intentá de nuevo.';
 
@@ -11,6 +14,29 @@ const LOAD_ERROR_MESSAGE = 'No pudimos cargar la liga. Revisá tu conexión e in
 // - cancelled: aviso de liga cancelada.
 // Sirve para las dos entradas que ya existen: /leagues/:id (desde el listado) y
 // /leagues/:id/lobby (después de crear la liga).
+function LeagueFixtureView({ leagueId, leagueName }) {
+  const { message, status, closeInfo, retry } = useLeagueSocket(leagueId, 'fixture');
+
+  const isLoading = status === 'connecting' || status === 'reconnecting';
+  const error = (status === 'closed' && closeInfo)
+    ? 'No pudimos cargar el fixture. Revisá tu conexión e intentá de nuevo.'
+    : null;
+
+  const matches = message?.fixture ?? null;
+
+  return (
+    <main className="league-lobby">
+      <h1>{leagueName}</h1>
+      <LeagueFixture
+        matches={matches}
+        isLoading={isLoading && !matches}
+        error={error}
+        onRetry={error ? retry : null}
+      />
+    </main>
+  );
+}
+
 export default function LeagueLobby() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -67,15 +93,17 @@ export default function LeagueLobby() {
     return <LeagueWaitingRoom league={league} onLeagueChanged={reload} />;
   }
 
-  return (
-    <main className="league-lobby">
-      <h1>{league.name}</h1>
-      <p>
-        {league.status === 'cancelled'
-          ? 'La liga fue cancelada.'
-          : 'Esta liga ya no está en preparación.'}
-      </p>
-      <Link to="/leagues">Volver a ligas</Link>
-    </main>
-  );
+  if (league.status === 'cancelled') {
+    return (
+      <main className="league-lobby">
+        <h1>{league.name}</h1>
+        <p>La liga fue cancelada.</p>
+        <Link to="/leagues">Volver a ligas</Link>
+      </main>
+    );
+  }
+
+  // started o finished: mostrar fixture en tiempo real
+  return <LeagueFixtureView leagueId={id} leagueName={league.name} />;
+
 }
