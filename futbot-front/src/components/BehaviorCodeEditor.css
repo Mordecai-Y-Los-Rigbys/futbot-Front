@@ -1,0 +1,20 @@
+.behavior-code-editor {
+  --cm-keyword: #8250df;
+  --cm-string: #0a7a3d;
+  --cm-number: #b35900;
+  --cm-comment: #6e7781;
+  --cm-function: #0b6bcb;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+@media (prefers-color-scheme: dark) {
+  .behavior-code-editor {
+    --cm-keyword: #d2a8ff;
+    --cm-string: #7ee787;
+    --cm-number: #ffa657;
+    --cm-comment: #8b949e;
+    --cm-function: #79c0ff;
+  }
+}

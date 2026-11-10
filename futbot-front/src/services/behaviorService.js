@@ -1,5 +1,11 @@
 import api from './api';
-import { getBehaviorByIdMock, getBehaviorsMock } from './behaviorMocks';
+import {
+  createBehaviorMock,
+  deleteBehaviorMock,
+  getBehaviorByIdMock,
+  getBehaviorsMock,
+  updateBehaviorMock,
+} from './behaviorMocks';
 import { USE_MOCKS } from '../config/mocks';
 
 // El backend responde siempre de a 50 elementos; el cliente no puede cambiarlo.
@@ -12,31 +18,76 @@ export const PAGE_SIZE = 50;
  * Lista los behaviors del usuario logueado (GET /behaviors/me).
  * @param {string} name  Filtro por nombre (parcial, case-insensitive). Vacío = sin filtro.
  * @param {number} page  Página a pedir, empezando en 1.
- * @param {{ signal?: AbortSignal, type?: string }} [options]  Permite filtrar por tipo y cancelar la request.
- * @returns {Promise<{ items: {id: number, name: string}[], page: number, pageSize: number, total: number }>}
+ * @param {{ signal?: AbortSignal, type?: 'playerBehavior' | 'coachBehavior' }} [options]
+ *   `signal` permite cancelar la request. `type` filtra por tipo en el servidor: sirve para llenar
+ *   el selector de behaviors de jugador (`members`) o el del DT (`coachBehaviorId`) sin filtrar en
+ *   el cliente, lo que rompería la paginación. Sin `type` trae ambos tipos.
+ * @returns {Promise<{ items: {id: number, name: string, type: string}[], page: number, pageSize: number, total: number }>}
  */
 export async function getBehaviors(name, page = 1, { signal, type } = {}) {
   if (USE_MOCKS) return getBehaviorsMock(name, page, { signal, type });
 
   const { data } = await api.get('/behaviors/me', {
-    // Con `undefined` axios omite el parámetro, así `?name=` no viaja vacío.
-    params: { name: name || undefined, page, ...(type ? { type } : {}) },
+    // Con `undefined` axios omite el parámetro, así `?name=` o `?type=` no viajan vacíos.
+    params: { name: name || undefined, type, page },
     signal,
   });
   return data;
 }
 
 /**
- * Obtiene nombre y código de un behavior (GET /behaviors/{id}).
+ * Obtiene nombre, tipo, código y `deletable` de un behavior (GET /behaviors/{id}).
  * La cookie de sesión viaja sola porque `api` usa `withCredentials: true`.
  * Errores posibles: 401 (sin sesión), 403 (no es del usuario), 404 (no existe o id inválido).
  * @param {string|number} id  Id del behavior (normalmente el param de la URL).
  * @param {{ signal?: AbortSignal }} [options]  Permite cancelar la request.
- * @returns {Promise<{ id: number, name: string, code: string }>}
+ * @returns {Promise<{ id: number, name: string, type: string, code: string, deletable: boolean }>}
  */
 export async function getBehaviorById(id, { signal } = {}) {
   if (USE_MOCKS) return getBehaviorByIdMock(id, { signal });
 
   const { data } = await api.get(`/behaviors/${encodeURIComponent(id)}`, { signal });
   return data;
+}
+
+/**
+ * Crea un behavior (POST /behaviors).
+ * Errores: 400 (campos), 401 (sin sesión), 409 (duplicateName | codeTooLong | invalidCode con `codeError`).
+ * @param {{ name: string, code: string, type: 'playerBehavior'|'coachBehavior' }} behavior
+ * @returns {Promise<{ id: number, name: string, type: string, code: string }>}
+ */
+export async function createBehavior({ name, code, type }, { signal } = {}) {
+  if (USE_MOCKS) return createBehaviorMock({ name, code, type });
+
+  const { data } = await api.post('/behaviors', { name, code, type }, { signal });
+  return data;
+}
+
+/**
+ * Edita un behavior (PUT /behaviors/{id}). El tipo no se envía ni se puede cambiar.
+ * Errores: 400 (campos), 401 (sin sesión), 403 (no es del usuario), 404 (no existe),
+ * 409 (duplicateName | codeTooLong | invalidCode con `codeError`).
+ * @param {string|number} id
+ * @param {{ name: string, code: string }} behavior
+ * @returns {Promise<{ id: number, name: string, code: string }>}
+ */
+export async function updateBehavior(id, { name, code }, { signal } = {}) {
+  if (USE_MOCKS) return updateBehaviorMock(id, { name, code });
+
+  const { data } = await api.put(`/behaviors/${encodeURIComponent(id)}`, { name, code }, { signal });
+  return data;
+}
+
+/**
+ * Elimina un behavior (DELETE /behaviors/{id}). Responde 204 sin body.
+ * Errores: 401 (sin sesión), 403 (no es del usuario), 404 (no existe o id inválido),
+ * 409 (`behaviorInLeagueTeam` | `behaviorInMatch`: el behavior está en uso, ver `deletable`).
+ * @param {string|number} id
+ * @param {{ signal?: AbortSignal }} [options]
+ * @returns {Promise<void>}
+ */
+export async function deleteBehavior(id, { signal } = {}) {
+  if (USE_MOCKS) return deleteBehaviorMock(id);
+
+  await api.delete(`/behaviors/${encodeURIComponent(id)}`, { signal });
 }

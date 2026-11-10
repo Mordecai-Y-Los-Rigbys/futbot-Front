@@ -119,5 +119,23 @@ describe('joinLeague', () => {
     api.post.mockRejectedValue(error);
 
     await expect(joinLeague(5, { members })).rejects.toBe(error);
+describe('leaveLeague', () => {
+  beforeEach(() => {
+    api.delete.mockReset();
+  });
+
+  it('pide DELETE /leagues/{id}/participants/me', async () => {
+    api.delete.mockResolvedValue({ status: 204 });
+
+    await leaveLeague(5);
+
+    expect(api.delete).toHaveBeenCalledWith('/leagues/5/participants/me');
+  });
+
+  it('propaga el 409 (por ejemplo, el creador no puede abandonar)', async () => {
+    const error = { response: { status: 409, data: { code: 'isCreator' } } };
+    api.delete.mockRejectedValue(error);
+
+    await expect(leaveLeague(5)).rejects.toBe(error);
   });
 });

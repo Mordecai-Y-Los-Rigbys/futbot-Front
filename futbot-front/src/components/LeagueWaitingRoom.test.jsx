@@ -2,18 +2,29 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { AuthContext } from '../context/AuthContext.jsx';
 import LeagueWaitingRoom from './LeagueWaitingRoom';
 import useLeagueSocket from '../hooks/useLeagueSocket';
-import {
+import {  unlockLeague,
+  leaveLeague,
+  joinLeague,
 } from '../services/leagueService';
+import { getPlayers } from '../services/playerService';
+import { getBehaviors } from '../services/behaviorService';
+
 
 // Servicios y hook falsos: no hay red ni socket de verdad. El hook tiene sus propios tests;
 // acá se le dice qué devolver para ver cómo reacciona la pantalla a cada mensaje y cierre.
 vi.mock('../hooks/useLeagueSocket');
 vi.mock('../services/leagueService');
+vi.mock('../services/playerService');
+vi.mock('../services/behaviorService');
 
 const CREATOR = { id: 2, username: 'pepe', name: 'Boca Juniors', avatar: 1 };
+const USER = { id: 1, username: 'santi', clubName: 'FC Santi' };
 const ME = { id: 1, username: 'santi', name: 'FC Santi', avatar: 2 };
+const PLAYERS = [1, 2, 3, 4, 5, 6].map((id) => ({ id, name: `Jugador ${id}` }));
+const PLAYER_BEHAVIORS = [{ id: 10, name: 'Atacar', type: 'playerBehavior' }];
 
 const makeLeague = (overrides = {}) => ({
   id: 5,
@@ -28,7 +39,8 @@ const makeLeague = (overrides = {}) => ({
   createdAt: '2026-01-01T00:00:00.000Z',
   ...overrides,
 });
-
+// Forma del error que arma axios: la pantalla lee `err.response.status` y `err.response.data.code`.
+const httpError = (status, code) => ({ response: { status, data: { code } } });
 
 const retry = vi.fn();
 
@@ -46,16 +58,18 @@ const canal = (participants, extra = {}) =>
 function renderRoom(league = makeLeague()) {
   const onLeagueChanged = vi.fn();
   const tree = () => (
-    <MemoryRouter initialEntries={['/leagues/5']}>
-      <Routes>
-        <Route
-          path="/leagues/:id"
-          element={<LeagueWaitingRoom league={league} onLeagueChanged={onLeagueChanged} />}
-        />
-        <Route path="/leagues" element={<p>Listado de ligas</p>} />
-        <Route path="/login" element={<p>Pantalla de login</p>} />
-      </Routes>
-    </MemoryRouter>
+    <AuthContext.Provider value={{ user: USER }}>
+      <MemoryRouter initialEntries={['/leagues/5']}>
+        <Routes>
+          <Route
+            path="/leagues/:id"
+            element={<LeagueWaitingRoom league={league} onLeagueChanged={onLeagueChanged} />}
+          />
+          <Route path="/leagues" element={<p>Listado de ligas</p>} />
+          <Route path="/login" element={<p>Pantalla de login</p>} />
+        </Routes>
+      </MemoryRouter>
+    </AuthContext.Provider>
   );
   const view = render(tree());
   return { onLeagueChanged, rerender: () => view.rerender(tree()) };
@@ -64,9 +78,21 @@ function renderRoom(league = makeLeague()) {
 // Los participantes viven en su propia sección (el creador también aparece en el encabezado).
 const seccionParticipantes = () => screen.queryByRole('region', { name: 'Participantes' });
 
+async function completarEquipo() {
+  const jugadores = await screen.findAllByLabelText('Jugador');
+  const comportamientos = screen.getAllByLabelText('Comportamiento');
+  for (let i = 0; i < 6; i += 1) {
+    await userEvent.selectOptions(jugadores[i], String(i + 1));
+    await userEvent.selectOptions(comportamientos[i], '10');
+  }
+}
+
 describe('LeagueWaitingRoom', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    getPlayers.mockResolvedValue(PLAYERS);
+    getBehaviors.mockResolvedValue({ items: PLAYER_BEHAVIORS, page: 1, pageSize: 50, total: 1 });
+
   });
 
   describe('lobby', () => {
@@ -215,4 +241,236 @@ describe('LeagueWaitingRoom', () => {
       expect(screen.getByText('Sin actualización en vivo')).toBeInTheDocument();
     });
   });
+  
+  describe('acceso a ligas privadas', () => {
+    const sinAcceso = () =>
+      useLeagueSocket.mockReturnValue({
+        message: null,
+        status: 'closed',
+        closeInfo: { code: 4403, reason: 'leagueAccessRequired' },
+        retry,
+      });
+
+    it('cierre 4403 leagueAccessRequired: muestra el nombre de la liga y el formulario, no los participantes', () => {
+      sinAcceso();
+
+      renderRoom(makeLeague({ private: true }));
+
+      expect(screen.getByRole('heading', { name: 'Liga del barrio' })).toBeInTheDocument();
+      expect(screen.getByLabelText(/contraseña de la liga/i)).toBeInTheDocument();
+      expect(seccionParticipantes()).not.toBeInTheDocument();
+      expect(screen.queryByText('Sin actualización en vivo')).not.toBeInTheDocument();
+    });
+
+    it('con la contraseña correcta desbloquea la liga y vuelve a conectar el canal', async () => {
+      sinAcceso();
+      unlockLeague.mockResolvedValue(undefined);
+
+      renderRoom(makeLeague({ private: true }));
+      await userEvent.type(screen.getByLabelText(/contraseña de la liga/i), 'secreta');
+      await userEvent.click(screen.getByRole('button', { name: 'Entrar' }));
+
+      await vi.waitFor(() => expect(retry).toHaveBeenCalledTimes(1));
+      expect(unlockLeague).toHaveBeenCalledWith(5, { password: 'secreta' });
+    });
+
+    it('con una contraseña incorrecta sigue en el formulario y no reconecta', async () => {
+      sinAcceso();
+      unlockLeague.mockRejectedValue(httpError(403, 'invalidLeaguePassword'));
+
+      renderRoom(makeLeague({ private: true }));
+      await userEvent.type(screen.getByLabelText(/contraseña de la liga/i), 'mala');
+      await userEvent.click(screen.getByRole('button', { name: 'Entrar' }));
+
+      expect(await screen.findByText('Contraseña incorrecta')).toBeInTheDocument();
+      expect(retry).not.toHaveBeenCalled();
+    });
+
+    it('"Volver" lleva al listado de ligas', async () => {
+      sinAcceso();
+
+      renderRoom(makeLeague({ private: true }));
+      await userEvent.click(screen.getByRole('button', { name: 'Volver' }));
+
+      expect(await screen.findByText('Listado de ligas')).toBeInTheDocument();
+    });
+
+    it('un cierre 4403 con otro motivo no muestra el formulario', () => {
+      useLeagueSocket.mockReturnValue({
+        message: null, status: 'closed', closeInfo: { code: 4403, reason: 'originNotAllowed' }, retry,
+      });
+
+      renderRoom(makeLeague({ private: true }));
+
+      expect(screen.queryByLabelText(/contraseña de la liga/i)).not.toBeInTheDocument();
+      expect(screen.getByText('Sin actualización en vivo')).toBeInTheDocument();
+    });
+
+    it('con acceso (creador, participante o ya desbloqueada) entra directo, sin formulario', () => {
+      canal([CREATOR]);
+
+      renderRoom(makeLeague({ private: true }));
+
+      expect(seccionParticipantes()).toBeInTheDocument();
+      expect(screen.queryByLabelText(/contraseña de la liga/i)).not.toBeInTheDocument();
+      expect(unlockLeague).not.toHaveBeenCalled();
+    });
+  });
+
 });
+  describe('abandonar', () => {
+    it('el botón se ve solo para quien participa y no es el creador', () => {
+      canal([CREATOR, ME]);
+
+      renderRoom();
+
+      expect(screen.getByRole('button', { name: /abandonar liga/i })).toBeInTheDocument();
+    });
+
+    it('el creador no ve el botón para abandonar', () => {
+      canal([ME]);
+
+      renderRoom(makeLeague({ creator: ME }));
+
+      expect(screen.getByText(/sos el creador de la liga/i)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /abandonar liga/i })).not.toBeInTheDocument();
+    });
+
+    it('quien no está en la lista no ve el botón para abandonar', () => {
+      canal([CREATOR]);
+
+      renderRoom();
+
+      expect(screen.queryByRole('button', { name: /abandonar liga/i })).not.toBeInTheDocument();
+    });
+
+    it('al hacer clic abre un modal de confirmación y todavía no llama a la API', async () => {
+      canal([CREATOR, ME]);
+
+      renderRoom();
+      await userEvent.click(screen.getByRole('button', { name: /abandonar liga/i }));
+
+      const modal = screen.getByRole('dialog', { name: /abandonar liga/i });
+      expect(within(modal).getByText('¿Estás seguro que deseas abandonar esta liga?')).toBeInTheDocument();
+      expect(leaveLeague).not.toHaveBeenCalled();
+    });
+
+    it('cancelar cierra el modal y no abandona', async () => {
+      canal([CREATOR, ME]);
+
+      renderRoom();
+      await userEvent.click(screen.getByRole('button', { name: /abandonar liga/i }));
+      await userEvent.click(screen.getByRole('button', { name: /cancelar/i }));
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(leaveLeague).not.toHaveBeenCalled();
+    });
+
+    it('al confirmar llama a la API con carga en el botón, avisa y vuelve al listado', async () => {
+      canal([CREATOR, ME]);
+      let terminar;
+      leaveLeague.mockReturnValue(new Promise((resolve) => { terminar = resolve; }));
+
+      renderRoom();
+      await userEvent.click(screen.getByRole('button', { name: /abandonar liga/i }));
+      await userEvent.click(screen.getByRole('button', { name: /sí, abandonar/i }));
+
+      // Mientras espera: botón deshabilitado con carga, para evitar múltiples clics.
+      const botonCargando = await screen.findByRole('button', { name: /abandonando/i });
+      expect(botonCargando).toBeDisabled();
+      expect(leaveLeague).toHaveBeenCalledWith(5);
+
+      terminar();
+
+      expect(await screen.findByText(/abandonaste la liga/i)).toBeInTheDocument();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(await screen.findByText('Listado de ligas', {}, { timeout: 3000 })).toBeInTheDocument();
+      expect(leaveLeague).toHaveBeenCalledTimes(1);
+    });
+
+    it('si el servidor responde 409, muestra el motivo y cierra el modal', async () => {
+      canal([CREATOR, ME]);
+      leaveLeague.mockRejectedValue(httpError(409, 'notInPreparation'));
+
+      renderRoom();
+      await userEvent.click(screen.getByRole('button', { name: /abandonar liga/i }));
+      await userEvent.click(screen.getByRole('button', { name: /sí, abandonar/i }));
+
+      expect(await screen.findByText(/ya no está en preparación: no se puede abandonar/i)).toBeInTheDocument();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('si falla la conexión, muestra un mensaje sin romper la pantalla', async () => {
+      canal([CREATOR, ME]);
+      leaveLeague.mockRejectedValue(new Error('Network Error'));
+
+      renderRoom();
+      await userEvent.click(screen.getByRole('button', { name: /abandonar liga/i }));
+      await userEvent.click(screen.getByRole('button', { name: /sí, abandonar/i }));
+
+      expect(await screen.findByText(/no pudimos abandonar la liga/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Liga del barrio' })).toBeInTheDocument();
+    });
+  });
+
+  describe('unirse', () => {
+    it('ofrece unirse si no estás en la lista, y el modal se abre', async () => {
+      canal([CREATOR]);
+
+      renderRoom();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: /unirse a la liga/i }));
+
+      expect(await screen.findByRole('dialog', { name: /unirse a liga del barrio/i })).toBeInTheDocument();
+    });
+
+    it('con el cupo lleno esconde el botón de unirse y avisa que la liga está llena', () => {
+      const OTRO = { id: 3, username: 'luli', name: 'River', avatar: 1 };
+      canal([CREATOR, OTRO]);
+
+      renderRoom(makeLeague({ maxParticipants: 2 }));
+
+      expect(screen.getByText('La liga está llena.')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /unirse a la liga/i })).not.toBeInTheDocument();
+    });
+
+    it('si ya participás no se ofrece unirse', () => {
+      canal([CREATOR, ME]);
+
+      renderRoom();
+
+      expect(screen.queryByRole('button', { name: /unirse a la liga/i })).not.toBeInTheDocument();
+    });
+
+    it('en una liga privada el modal pide la contraseña', async () => {
+      canal([CREATOR]);
+
+      renderRoom(makeLeague({ private: true }));
+      await userEvent.click(screen.getByRole('button', { name: /unirse a la liga/i }));
+
+      const modal = await screen.findByRole('dialog');
+      expect(await within(modal).findByLabelText(/contraseña de la liga/i)).toBeInTheDocument();
+    });
+
+    it('al inscribirse cierra el modal, avisa y la lista nueva del canal refleja al club como participante', async () => {
+      canal([CREATOR]);
+      joinLeague.mockResolvedValue(undefined);
+
+      const { rerender } = renderRoom();
+      await userEvent.click(screen.getByRole('button', { name: /unirse a la liga/i }));
+      await completarEquipo();
+      await userEvent.click(screen.getByRole('button', { name: /confirmar inscripción/i }));
+
+      expect(await screen.findByText('¡Te uniste a la liga!')).toBeInTheDocument();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(joinLeague).toHaveBeenCalledTimes(1);
+
+      // El canal manda la lista con el club inscripto: no hace falta recargar nada.
+      canal([CREATOR, ME]);
+      rerender();
+      expect(within(seccionParticipantes()).getByText(/@santi/)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /abandonar liga/i })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /unirse a la liga/i })).not.toBeInTheDocument();
+    });
+  });
+

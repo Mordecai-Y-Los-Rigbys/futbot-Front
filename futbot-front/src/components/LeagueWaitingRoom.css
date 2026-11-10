@@ -56,3 +56,28 @@
   gap: 1rem;
   margin-top: 1.5rem;
 }
+
+.league-lobby__danger {
+  padding: 0.7rem 1.2rem;
+  border: none;
+  border-radius: 8px;
+  background: #a12d2d;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.league-lobby__danger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.league-lobby__primary {
+  padding: 0.7rem 1.2rem;
+  border: none;
+  border-radius: 8px;
+  background: #2f7a1c;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}

@@ -1,6 +1,12 @@
-import { useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import JoinLeagueModal from './JoinLeagueModal';
+import LeaguePasswordForm from './LeaguePasswordForm';
+import { Link } from "react-router";
+import Modal from './Modal';
+import { useAuth } from '../context/AuthContext.jsx';
 import useLeagueSocket from '../hooks/useLeagueSocket';
+import { leaveLeague, startLeague } from '../services/leagueService';
 import './LeagueWaitingRoom.css';
 
 // Mismo mapa que Leagues.jsx: si hace falta en una tercera pantalla, conviene moverlo a un módulo común.
@@ -13,6 +19,21 @@ const STATUS_LABELS = {
 
 // Cierres del canal que no son un error: la pantalla se va o se vuelve a pedir la liga.
 const LEAVING_CLOSE_CODES = [1000, 4401, 4404, 4409];
+const SESSION_MESSAGE = 'Tu sesión venció. Iniciá sesión nuevamente.';
+
+const START_CONFLICT_MESSAGES = {
+  notInPreparation:      'La liga ya no está en preparación.',
+  notEnoughParticipants: 'No hay suficientes participantes para iniciar.',
+};
+
+const LEAVE_CONFLICT_MESSAGES = {
+  notInPreparation: 'La liga ya no está en preparación: no se puede abandonar.',
+  notParticipating: 'Ya no participás en esta liga.',
+  isCreator: 'El creador no puede abandonar la liga.',
+};
+
+// Cuánto se muestra el aviso de éxito antes de volver al listado (mismo criterio que Register).
+const REDIRECT_DELAY_MS = 1500;
 
 // Sala de espera de una liga en preparación. La lista de participantes llega por el WebSocket
 // `/ws/leagues/{id}/participants`: cada mensaje trae la lista completa y reemplaza a la anterior.
@@ -22,7 +43,18 @@ const LEAVING_CLOSE_CODES = [1000, 4401, 4404, 4409];
 // (la inició el creador, la cancelaron, etc.) para que vuelva a pedirla y elija la vista.
 export default function LeagueWaitingRoom({ league, onLeagueChanged }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { message, status, closeInfo, retry } = useLeagueSocket(league.id, 'participants');
+
+  const [isLeaveOpen, setIsLeaveOpen] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
+  const [leaveError, setLeaveError] = useState(null);
+  const [hasLeft, setHasLeft] = useState(false);
+  const [isJoinOpen, setIsJoinOpen] = useState(false);
+  const [notice, setNotice] = useState(null);
+  const [isStarting, setIsStarting] = useState(false);
+  const [startError, setStartError] = useState(null);
+
 
   // Cierres definitivos del canal que sacan al usuario de esta vista.
   useEffect(() => {
@@ -31,6 +63,81 @@ export default function LeagueWaitingRoom({ league, onLeagueChanged }) {
     else if (closeInfo.code === 4404) navigate('/leagues', { replace: true });
     else if (closeInfo.code === 1000 || closeInfo.code === 4409) onLeagueChanged();
   }, [closeInfo, navigate, onLeagueChanged]);
+
+  // Después de abandonar con éxito: se muestra el aviso un momento y se vuelve al listado.
+  useEffect(() => {
+    if (!hasLeft) return undefined;
+    const timer = setTimeout(() => navigate('/leagues'), REDIRECT_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [hasLeft, navigate]);
+
+  const handleLeave = async () => {
+    setIsLeaving(true);
+    setLeaveError(null);
+    try {
+      await leaveLeague(league.id);
+      setIsLeaveOpen(false);
+      setHasLeft(true);
+    } catch (err) {
+      setIsLeaveOpen(false);
+      const { status: httpStatus, data } = err.response ?? {};
+      if (httpStatus === 409) {
+        // La liga cambió: el motivo se muestra y el canal avisa del cambio de estado si corresponde.
+        setLeaveError(LEAVE_CONFLICT_MESSAGES[data?.code] ?? 'No se pudo abandonar la liga.');
+      } else if (httpStatus === 401) {
+        setLeaveError(SESSION_MESSAGE);
+      } else if (httpStatus === 404) {
+        setLeaveError('La liga ya no existe.');
+      } else {
+        setLeaveError('No pudimos abandonar la liga. Intentá nuevamente.');
+      }
+    } finally {
+      setIsLeaving(false);
+    }
+  };
+
+  // No hace falta volver a pedir nada: el canal manda la lista nueva con el club ya inscripto.
+  const handleJoined = () => {
+    setIsJoinOpen(false);
+    setNotice('¡Te uniste a la liga!');
+  };
+    const handleStart = async () => {
+    setIsStarting(true);
+    setStartError(null);
+    try {
+      await startLeague(league.id);
+      // El WS cierra con 1000 y onLeagueChanged() navega a la vista de liga en curso.
+      // No hace falta navegar manualmente: el useEffect de closeInfo ya lo hace.
+    } catch (err) {
+      const { status: httpStatus, data } = err.response ?? {};
+      if (httpStatus === 409) {
+        setStartError(START_CONFLICT_MESSAGES[data?.code] ?? 'No se pudo iniciar la liga.');
+      } else if (httpStatus === 401) {
+        setStartError('Tu sesión venció. Iniciá sesión nuevamente.');
+      } else if (httpStatus === 403) {
+        setStartError('Solo el creador puede iniciar la liga.');
+      } else {
+        setStartError('No pudimos iniciar la liga. Intentá nuevamente.');
+      }
+    } finally {
+      setIsStarting(false);
+    }
+  };
+
+  // 4403 leagueAccessRequired: liga privada sin acceso. Otros 4403 (por ejemplo originNotAllowed)
+  // no son este caso. Se muestra el formulario en lugar de la sala.
+  if (closeInfo?.code === 4403 && closeInfo.reason === 'leagueAccessRequired') {
+    return (
+      <main className="league-lobby">
+        <LeaguePasswordForm
+          leagueId={league.id}
+          leagueName={league.name}
+          onSuccess={retry}
+          onBack={() => navigate('/leagues')}
+        />
+      </main>
+    );
+  }
 
   // Hasta tener el primer mensaje (o un cierre que cambie la pantalla) se muestra la carga.
   const isLeavingView = closeInfo !== null && LEAVING_CLOSE_CODES.includes(closeInfo.code);
@@ -42,7 +149,14 @@ export default function LeagueWaitingRoom({ league, onLeagueChanged }) {
   // El cupo restante sale de la lista del canal, así cambia junto con ella.
   const spotsLeft = Math.max(0, league.maxParticipants - participants.length);
   const lostLive = closeInfo !== null && !isLeavingView;
-
+  
+  const isCreator = league.creator.id === user.id;
+  const isParticipant = participants.some((participant) => participant.id === user.id);
+  const canLeave = isParticipant && !isCreator && !hasLeft;
+  const isFull = spotsLeft === 0;
+  const canJoin = !isParticipant && !isFull;
+  const canStart = isCreator && participants.length >= league.minParticipants;
+  
   return (
     <main className="league-lobby">
       <header>
@@ -52,7 +166,7 @@ export default function LeagueWaitingRoom({ league, onLeagueChanged }) {
         </div>
         <p>{`Creada por ${league.creator.name} · @${league.creator.username}`}</p>
         <ul className="league-lobby__facts">
-          <li>{league.status}</li>
+          <li>{STATUS_LABELS[league.status] || league.status}</li>
           <li>{spotsLeft === 0 ? 'Cupo completo' : `Faltan ${spotsLeft} para completar el cupo`}</li>
           <li>{`Mínimo ${league.minParticipants}`}</li>
         </ul>
@@ -66,6 +180,10 @@ export default function LeagueWaitingRoom({ league, onLeagueChanged }) {
         </div>
       )}
 
+      {notice && <p role="status">{notice}</p>}
+      {hasLeft && <p role="status">Abandonaste la liga. Te llevamos al listado…</p>}
+      {leaveError && <p role="alert">{leaveError}</p>}
+
       <section aria-label="Participantes">
         <h2>Participantes</h2>
         <ul className="league-lobby__participants">
@@ -77,10 +195,78 @@ export default function LeagueWaitingRoom({ league, onLeagueChanged }) {
           ))}
         </ul>
       </section>
+  
+      {isCreator && <p>Sos el creador de la liga: no podés abandonarla.</p>}
+      {startError && <p role="alert">{startError}</p>}
+      {!isParticipant && isFull && <p>La liga está llena.</p>}
 
       <div className="league-lobby__actions">
+        {canStart && (
+          <button
+            type="button"
+            className="league-lobby__primary"
+            onClick={handleStart}
+            disabled={isStarting}
+          >
+            {isStarting ? 'Iniciando…' : 'Iniciar liga'}
+          </button>
+        )}
+
+        {canLeave && (
+          <button
+            type="button"
+            className="league-lobby__danger"
+            onClick={() => setIsLeaveOpen(true)}
+          >
+            Abandonar liga
+          </button>
+        )}
+        {canJoin && (
+          <button
+            type="button"
+            className="league-lobby__primary"
+            onClick={() => setIsJoinOpen(true)}
+          >
+            Unirse a la liga
+          </button>
+        )}
+
         <Link to="/leagues">Volver a ligas</Link>
       </div>
+      
+      {isLeaveOpen && (
+        <Modal title="Abandonar liga" onClose={() => setIsLeaveOpen(false)} isBusy={isLeaving}>
+          <p>¿Estás seguro que deseas abandonar esta liga?</p>
+          <div className="modal__actions">
+            <button type="button" onClick={() => setIsLeaveOpen(false)} disabled={isLeaving}>
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="league-lobby__danger"
+              onClick={handleLeave}
+              disabled={isLeaving}
+            >
+              {isLeaving ? (
+                <>
+                  <span className="modal__spinner" aria-hidden="true" />
+                  Abandonando…
+                </>
+              ) : 'Sí, abandonar'}
+            </button>
+          </div>
+        </Modal>
+      )}
+      
+      {isJoinOpen && (
+        <JoinLeagueModal
+          league={league}
+          onClose={() => setIsJoinOpen(false)}
+          onJoined={handleJoined}
+        />
+      )}
+
+
     </main>
   );
 }

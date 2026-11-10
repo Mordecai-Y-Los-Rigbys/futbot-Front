@@ -1,0 +1,40 @@
+.league-standings__status {
+  padding: 1rem;
+  color: #555;
+}
+
+.league-standings {
+  overflow-x: auto;
+}
+
+.league-standings__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.league-standings__table th,
+.league-standings__table td {
+  padding: 0.5rem 0.75rem;
+  text-align: center;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.league-standings__club-col {
+  text-align: left;
+  font-weight: 500;
+}
+
+.league-standings__table thead th {
+  background: #f5f5f5;
+  font-weight: 600;
+  color: #3a3a3a;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.league-standings__pts {
+  font-weight: 700;
+  color: #1b4e0e;
+}

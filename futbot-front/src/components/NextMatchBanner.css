@@ -1,0 +1,75 @@
+.next-match-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: #f0f7ee;
+  border: 1px solid #c8dfc4;
+  margin-bottom: 1rem;
+}
+
+.next-match-banner--live {
+  background: #fff3e0;
+  border-color: #ffb74d;
+}
+
+.next-match-banner__clubs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.next-match-banner__club {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 500;
+}
+
+.next-match-banner__avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.next-match-banner__avatar--initial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1b4e0e;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.next-match-banner__vs {
+  color: #888;
+  font-size: 0.85rem;
+}
+
+.next-match-banner__btn {
+  display: inline-block;
+  padding: 0.4rem 1rem;
+  background: #1b4e0e;
+  color: white;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.next-match-banner__btn:hover {
+  background: #2a6b1a;
+}
+
+.next-match-banner__info {
+  font-size: 0.85rem;
+  color: #666;
+  margin: 0;
+  white-space: nowrap;
+}
