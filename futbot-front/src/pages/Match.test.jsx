@@ -2,25 +2,21 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Match from './Match';
-import { getMatch, getMatchTeam, getSubstitutions, setSubstitution } from '../services/matchService';
-import { AuthContext } from '../context/AuthContext.jsx';
+import { getMatch, getMatchLineups } from '../services/matchService';
 import useMatchWebSocket, { INITIAL_META } from '../hooks/useMatchWebSocket';
 
-vi.mock('../services/matchService', () => ({
-  getMatch: vi.fn(),
-  getMatchTeam: vi.fn(),
-  getSubstitutions: vi.fn(),
-  setSubstitution: vi.fn(),
-}));
+vi.mock('../services/matchService', () => ({ getMatch: vi.fn(), getMatchLineups: vi.fn() }));
 vi.mock('../hooks/useMatchWebSocket', async (importOriginal) => ({
   ...(await importOriginal()),
   default: vi.fn(),
 }));
-// jsdom no implementa canvas.
-// El panel de comportamientos también pide el equipo (GET /matches/{id}/team) y mezclaría sus llamadas
-// con las de SubstitutionControl en los tests de "cambio de jugador".
-vi.mock('../components/MatchBehaviorPanel', () => ({ default: () => null }));
-vi.mock('../components/Pitch2DCanvas', () => ({ default: () => <div data-testid="pitch" />, TEAM_COLORS: { 1: '#d32f2f', 2: '#1976d2' } }));
+// jsdom no implementa canvas. El mock expone roster.players para poder verificarlo.
+vi.mock('../components/Pitch2DCanvas', () => ({
+  default: ({ roster }) => <output data-testid="pitch">{JSON.stringify(roster?.players ?? {})}</output>,
+  TEAM_COLORS: { 1: '#d32f2f', 2: '#1976d2' },
+}));
+// El panel de pausa usa useAuth y pide las sustituciones: acá no se prueba.
+vi.mock('../components/PausePanel', () => ({ default: () => <div>pausa</div> }));
 
 const club1 = { id: 10, name: 'La Scaloneta FC', username: 'scaloni' };
 const club2 = { id: 11, name: 'Manchester City', username: 'guardiola' };
@@ -28,32 +24,36 @@ const kicks = [
   { club: 'club1', kickerId: 1, kickerName: 'Messi', round: 1, scored: true },
   { club: 'club2', kickerId: 4, kickerName: 'Haaland', round: 1, scored: false },
 ];
-
-const tree = () => (
-  <AuthContext.Provider value={{ user: { username: 'scaloni' }, setUser: vi.fn() }}>
-    <MemoryRouter initialEntries={['/matches/5']}>
-      <Routes>
-        <Route path="/matches/:id" element={<Match />} />
-      </Routes>
-    </MemoryRouter>
-  </AuthContext.Provider>
-);
-
-const renderMatch = () => {
-  const utils = render(tree());
-  return { ...utils, refresh: () => utils.rerender(tree()) };
+const LINEUPS = {
+  club1: [{ playerId: 1, name: 'Messi', role: 'forward' }],
+  club2: null,
 };
+
+const ui = () => (
+  <MemoryRouter initialEntries={['/matches/5']}>
+    <Routes>
+      <Route path="/matches/:id" element={<Match />} />
+    </Routes>
+  </MemoryRouter>
+);
+const renderMatch = () => render(ui());
+
+const mockWs = (meta = {}) =>
+  useMatchWebSocket.mockReturnValue({
+    status: 'open',
+    streamRef: { current: null },
+    meta: { ...INITIAL_META, ...meta },
+    fatal: null,
+  });
 
 describe('Match', () => {
   beforeEach(() => {
     getMatch.mockReset();
+    getMatchLineups.mockReset();
+    // Sin este default, LiveMatch haría .then sobre undefined.
+    getMatchLineups.mockResolvedValue(LINEUPS);
     useMatchWebSocket.mockReset();
-    useMatchWebSocket.mockReturnValue({
-      status: 'open',
-      streamRef: { current: null },
-      meta: { ...INITIAL_META },
-      fatal: null,
-    });
+    mockWs();
   });
 
   it('muestra “Cargando partido…” hasta que llega el GET', async () => {
@@ -82,6 +82,7 @@ describe('Match', () => {
     expect(screen.getByLabelText('Penal 1: gol, Messi')).toBeInTheDocument();
     expect(screen.getByLabelText('Penal 1: no convertido, Haaland')).toBeInTheDocument();
     expect(useMatchWebSocket).not.toHaveBeenCalled();
+    expect(getMatchLineups).not.toHaveBeenCalled();
   });
 
   it('partido terminado sin tanda: resultado sin penales', async () => {
@@ -102,18 +103,12 @@ describe('Match', () => {
 
   it('partido en curso: abre el WebSocket y usa los nombres del GET', async () => {
     getMatch.mockResolvedValue({ id: 5, status: 'started', club1, club2, result: null });
-    useMatchWebSocket.mockReturnValue({
-      status: 'open',
-      streamRef: { current: null },
-      meta: {
-        ...INITIAL_META,
-        phase: 'penalties',
-        penaltyKicks: kicks,
-        penaltyScore1: 1,
-        penaltyCurrent: { club: 'club1', kickerId: 2, kickerName: 'Di María', defenderId: 11, defenderName: 'Foden' },
-        penaltyRemainingSeconds: 7,
-      },
-      fatal: null,
+    mockWs({
+      phase: 'penalties',
+      penaltyKicks: kicks,
+      penaltyScore1: 1,
+      penaltyCurrent: { club: 'club1', kickerId: 2, kickerName: 'Di María', defenderId: 11, defenderName: 'Foden' },
+      penaltyRemainingSeconds: 7,
     });
 
     renderMatch();
@@ -126,12 +121,7 @@ describe('Match', () => {
 
   it('si el GET falla igual se mira el partido por WebSocket, con “Club 1” / “Club 2”', async () => {
     getMatch.mockRejectedValue(new Error('boom'));
-    useMatchWebSocket.mockReturnValue({
-      status: 'open',
-      streamRef: { current: null },
-      meta: { ...INITIAL_META, phase: 'penalties', penaltyRemainingSeconds: 8 },
-      fatal: null,
-    });
+    mockWs({ phase: 'penalties', penaltyRemainingSeconds: 8 });
 
     renderMatch();
 

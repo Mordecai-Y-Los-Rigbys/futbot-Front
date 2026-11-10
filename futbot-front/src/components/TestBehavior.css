@@ -1,0 +1,219 @@
+/* Usa las variables de color de index.css (modo claro y oscuro). */
+.test-behavior__reason {
+  margin: 8px 0 0;
+  font-size: 14px;
+}
+
+.test-modal__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px 16px;
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.test-modal {
+  width: 100%;
+  max-width: 760px;
+  box-sizing: border-box;
+  padding: 24px;
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-h);
+  box-shadow: var(--shadow);
+  text-align: left;
+}
+
+.test-modal h2 {
+  margin: 0 0 8px;
+}
+
+.test-modal__help {
+  margin: 0 0 16px;
+}
+
+.test-modal__error {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-bg);
+  border-radius: 6px;
+}
+
+.test-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.test-lineup__section {
+  margin-bottom: 20px;
+}
+
+.test-lineup__section h3 {
+  margin: 0 0 8px;
+}
+
+.test-lineup__slot {
+  margin-bottom: 12px;
+}
+
+.test-lineup__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+/* Combobox: un solo campo que hace de desplegable y de buscador. */
+.paged-select {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.paged-select__control {
+  position: relative;
+}
+
+.paged-select__control input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px 32px 10px 12px;
+  font: inherit;
+  color: var(--text-h);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  text-overflow: ellipsis;
+}
+
+.paged-select__control input::placeholder {
+  color: var(--text);
+  opacity: 1;
+}
+
+.paged-select__control input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 0;
+}
+
+.paged-select__control input[aria-invalid='true'] {
+  border-color: var(--accent);
+}
+
+/* Flechita del desplegable. */
+.paged-select__control::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid var(--text);
+  border-bottom: 2px solid var(--text);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+
+.paged-select__list {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 240px;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  list-style: none;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: var(--shadow);
+}
+
+.paged-select__option {
+  padding: 8px 10px;
+  border-radius: 4px;
+  color: var(--text-h);
+  font-size: 15px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.paged-select__option--active {
+  background: var(--accent-bg);
+}
+
+.paged-select__option--selected {
+  font-weight: 600;
+}
+
+.paged-select__option--clear {
+  color: var(--text);
+}
+
+.paged-select__option--disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.paged-select__status {
+  padding: 8px 10px;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.paged-select__more {
+  padding: 4px 0 0;
+}
+
+.paged-select__more button {
+  width: 100%;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text-h);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.paged-select__more button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.paged-select__error {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* Pantalla de la prueba */
+.behavior-test__bar {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  max-width: 1080px;
+  margin: 12px auto 0;
+}
+
+.behavior-test__message {
+  max-width: 1080px;
+  margin: 12px auto 0;
+  text-align: center;
+}
+
+@media (max-width: 600px) {
+  .test-lineup__row {
+    grid-template-columns: 1fr;
+  }
+}

@@ -6,6 +6,13 @@ import { createLeague } from '../services/leagueService';
 import TeamBuilderForm from '../components/TeamBuilderForm';
 import './CreateLeague.css';
 
+// Modo de la liga. `normal` permite empates (allowDraws: true); `penalties` los define por penales.
+const MODE_OPTIONS = [
+  { value: 'normal', label: 'Normal (puede haber empates)' },
+  { value: 'penalties', label: 'Penales (los empates se definen por penales)' },
+];
+const DEFAULT_MODE = 'normal';
+
 export default function CreateLeague() {
   const navigate = useNavigate();
   const [name, setName] = useState('');
@@ -13,6 +20,7 @@ export default function CreateLeague() {
   const [maxParticipants, setMaxParticipants] = useState(8);
   const [matchDuration, setMatchDuration] = useState(10);
   const [isPrivate, setIsPrivate] = useState(false);
+  const [mode, setMode] = useState(DEFAULT_MODE);
   const [password, setPassword] = useState('');
   const [players, setPlayers] = useState([]);
   const [behaviors, setBehaviors] = useState([]);
@@ -84,6 +92,7 @@ export default function CreateLeague() {
         matchDuration: Number(matchDuration),
         private: isPrivate,
         password: isPrivate ? password : null,
+        allowDraws: mode === 'normal',
         members,
       });
       navigate(`/leagues/${league.id}/lobby`);
@@ -173,6 +182,26 @@ export default function CreateLeague() {
             />
             Privada
           </label>
+          <div className="create-league__field">
+            <label htmlFor="create-league-mode">Modo de la liga</label>
+            <select
+              id="create-league-mode"
+              name="mode"
+              value={mode}
+              aria-describedby="create-league-mode-help"
+              onChange={(event) => setMode(event.target.value)}
+              required
+            >
+              {MODE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <small id="create-league-mode-help" className="create-league__help">
+              Si la tanda de penales queda empatada, el ganador se define por sorteo.
+            </small>
+          </div>
           {isPrivate && (
             <label className="create-league__field">
               Contraseña
@@ -209,3 +238,4 @@ export default function CreateLeague() {
     </main>
   );
 }
+

@@ -35,6 +35,16 @@ const BEHAVIORS = Array.from({ length: 120 }, (_, i) => {
 const httpError = (status, data = {}) =>
   Object.assign(new Error(`HTTP ${status} (mock)`), { response: { status, data } });
 
+// Uso simulado según el id, para probar el botón "Eliminar" sin backend:
+//   id terminado en 0 -> asignado a un equipo de liga (409 behaviorInLeagueTeam)
+//   id terminado en 5 -> en uso en un partido en curso (409 behaviorInMatch)
+//   el resto          -> se puede eliminar (deletable: true)
+const usageOf = (id) => {
+  if (id % 10 === 0) return 'behaviorInLeagueTeam';
+  if (id % 10 === 5) return 'behaviorInMatch';
+  return null;
+};
+
 // Espera `ms`, pero se corta con un error de cancelación si se aborta el signal
 // (igual que haría axios), para que el AbortController de las pantallas funcione.
 const wait = (ms, signal) =>
@@ -87,7 +97,24 @@ export async function getBehaviorByIdMock(id, { signal } = {}) {
   const found = BEHAVIORS.find((b) => b.id === numericId);
   if (!found) throw httpError(404);
 
-  return { ...found };
+  return { ...found, deletable: usageOf(found.id) === null };
+}
+
+// DELETE /behaviors/{id}. Responde 204 (sin body) salvo: id inexistente -> 404,
+// id 403 -> 403, y los ids en uso (ver usageOf) -> 409 con su código.
+export async function deleteBehaviorMock(id) {
+  await wait(MOCK_DELAY_MS);
+
+  const numericId = Number(id);
+  if (numericId === MOCK_FORBIDDEN_ID) throw httpError(403, { code: null, message: 'No es tuyo.' });
+
+  const index = BEHAVIORS.findIndex((b) => b.id === numericId);
+  if (index === -1) throw httpError(404, { code: null, message: 'El behavior no existe.' });
+
+  const code = usageOf(numericId);
+  if (code) throw httpError(409, { code, message: 'El behavior está en uso.' });
+
+  BEHAVIORS.splice(index, 1);
 }
 
 let nextBehaviorId = BEHAVIORS.length + 1;

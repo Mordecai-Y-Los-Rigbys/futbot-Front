@@ -23,12 +23,19 @@
   text-decoration: none;
 }
 
-.username {
+.topRight {
   grid-column: 3;
   justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.username {
   color: #5b6657;
   font-size: 0.95rem;
 }
+
 
 /* Barra de navegación */
 .nav {

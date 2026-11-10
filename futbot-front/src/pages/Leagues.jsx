@@ -36,7 +36,13 @@ function LeagueRow({ league, onOpen }) {
           if (event.key === 'Enter') onOpen(league.id);
         }}
       >
-        <span className="leagues__name">{league.name}</span>
+        <span className="leagues__name">
+          {league.name}
+          {/* Solo se etiqueta el modo especial: allowDraws === false. */}
+          {league.allowDraws === false && (
+            <span className="leagues__mode">Definición por Penales</span>
+          )}
+        </span>
         <span className="leagues__creator">{`${league.creator.name} · @${league.creator.username}`}</span>
         <span className="leagues__status">{STATUS_LABELS[league.status] ?? league.status}</span>
         {/* Capacidad combinada: un solo dato, nunca dos separados. */}

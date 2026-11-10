@@ -74,3 +74,25 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+.league-lobby__tabs {
+  display: flex;
+  border-bottom: 2px solid #e0e0e0;
+  margin-bottom: 1rem;
+}
+
+.league-lobby__tab {
+  padding: 0.6rem 1.25rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.95rem;
+  color: #666;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+}
+
+.league-lobby__tab--active {
+  color: #1b4e0e;
+  font-weight: 600;
+  border-bottom-color: #1b4e0e;
+}

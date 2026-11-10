@@ -39,6 +39,22 @@
   font: inherit;
 }
 
+.create-league__field select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-h);
+  background: var(--bg);
+  font: inherit;
+}
+
+.create-league__help {
+  color: var(--text);
+  font-size: 13px;
+}
+
 .create-league__number-fields {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -53,7 +69,8 @@
   font-size: 15px;
 }
 
-.create-league input:focus-visible {
+.create-league input:focus-visible,
+.create-league select:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -103,3 +120,4 @@
     grid-template-columns: 1fr;
   }
 }
+

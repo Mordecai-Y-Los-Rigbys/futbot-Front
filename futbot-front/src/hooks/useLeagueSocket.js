@@ -7,7 +7,10 @@ const MAX_RETRIES = 3;
 const MESSAGE_TYPES = {
   participants: 'leagueParticipants',
   'matches/next': 'leagueNextMatch',
+  fixture: 'leagueFixture',
+  ranking: 'leagueRanking',
 };
+
 
 /**
  * Se conecta a un canal de liga (`/ws/leagues/{id}/{channel}`) con la cookie de sesión.

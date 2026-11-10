@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import styles from './Header.module.css';
+import NotificationsBell from './NotificationsBell';
 
 const LINKS = [
   { to: '/', label: 'Inicio', end: true },
@@ -20,7 +21,13 @@ function Header() {
         <NavLink to="/" className={styles.brand}>
           ⚽ FutBot
         </NavLink>
-        {user && <span className={styles.username}>@{user.username}</span>}
+                {user && (
+          <div className={styles.topRight}>
+            <NotificationsBell />
+            <span className={styles.username}>@{user.username}</span>
+          </div>
+        )}
+
       </div>
 
       <nav className={styles.nav} aria-label="Navegación principal">

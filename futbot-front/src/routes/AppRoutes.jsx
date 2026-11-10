@@ -9,6 +9,7 @@ import Register from '../pages/Register';
 import LoginScreen from '../pages/Login';
 import Behaviors from '../pages/Behaviors';
 import BehaviorDetail from '../pages/BehaviorDetail';
+import BehaviorTest from '../pages/BehaviorTest';
 import Leagues from '../pages/Leagues';
 import CreateLeague from '../pages/CreateLeague';
 import LeagueLobby from '../pages/LeagueLobby';
@@ -19,6 +20,7 @@ import Match from '../pages/Match';
 import Players from '../pages/Players';
 import CreatePlayerPage from '../pages/CreatePlayerPage';
 import Ranking from '../pages/Ranking';
+import LeagueStandingsPage from '../pages/LeagueStandingsPage';
 
 // CreateFriendly es un modal: acá lo usamos como página y "Cancelar" vuelve al listado.
 // Va como componente aparte porque useNavigate solo funciona dentro del <BrowserRouter>.
@@ -50,12 +52,18 @@ export default function AppRoutes() {
               <Route path=":id" element={<BehaviorDetail />} />
             </Route>
 
+            {/* Prueba de comportamientos: no es un partido (sin id, sin listados, sin rankings).
+                La ruta estática le gana a /behaviors/:id. */}
+            <Route path="/behaviors/test" element={<BehaviorTest />} />
+
             {/* Ligas */}
             <Route path="/leagues" element={<Leagues />} />
             <Route path="/leagues/create" element={<CreateLeague />} />
             {/* Misma pantalla en las dos rutas: Leagues navega a /leagues/:id y CreateLeague a /leagues/:id/lobby.*/}
             <Route path="/leagues/:id" element={<LeagueLobby />} />
             <Route path="/leagues/:id/lobby" element={<LeagueLobby />} />
+            <Route path="/leagues/:id/ranking" element={<LeagueStandingsPage />} />
+
 
             {/* Amistosos */}
             <Route path="/friendlies" element={<Friendlies />} />

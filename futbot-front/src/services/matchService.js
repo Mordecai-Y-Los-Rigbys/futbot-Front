@@ -13,23 +13,6 @@ import {
   setSubstitutionMock,
 } from './matchMocks';
 
-/**
- * Obtiene un partido por id (GET /matches/{id}).
- * Incluye result.penalties si hubo tanda de penales.
- * Errores posibles: 401, 403, 404.
- */
-export async function getMatch(matchId, { signal } = {}) {
-  if (USE_MOCKS) return getMatchMock(matchId);
-
-  const { data } = await api.get(`/matches/${encodeURIComponent(matchId)}`, { signal });
-  return data;
-}
-
-export async function getSubstitutions(matchId, { signal } = {}) {
-  if (USE_MOCKS) return getSubstitutionsMock(matchId, { signal });
-  const { data } = await api.get(`/matches/${encodeURIComponent(matchId)}/substitutions`, { signal });
-  return data;
-}
 // Nunca se activa en los tests (MODE === 'test'): ahí se mockea este módulo.
 
 /**
@@ -42,6 +25,13 @@ export async function createMatchConnection(matchId) {
   if (USE_MOCKS) return createMatchConnectionMock(matchId);
 
   const { data } = await api.post(`/matches/${encodeURIComponent(matchId)}/connections`);
+  return data;
+}
+
+export async function getMatchTeam(matchId, { signal } = {}) {
+  if (USE_MOCKS) return getMatchTeamMock(matchId);
+
+  const { data } = await api.get(`/matches/${encodeURIComponent(matchId)}/team`, { signal });
   return data;
 }
 
@@ -117,6 +107,23 @@ export async function reassignBehavior(matchId, { playerId, behaviorId }) {
   if (USE_MOCKS) return reassignBehaviorMock(matchId, { playerId, behaviorId });
 
   await api.put(`/matches/${encodeURIComponent(matchId)}/behavior`, { playerId, behaviorId });
+}
+
+/**
+ * Titulares de ambos clubes (GET /matches/{id}/lineups). Lo pueden pedir los dos usuarios
+ * del partido y, en partidos de liga, los espectadores con acceso a la liga.
+ * Refleja la alineación efectiva del momento (con las sustituciones ya aplicadas).
+ * Errores posibles: 401 (sin sesión), 403 (notAPlayerInMatch / leagueAccessRequired), 404 (no existe).
+ * No tiene 409: responde en cualquier estado del partido.
+ * @returns {Promise<{ club1: LineupPlayer[], club2: LineupPlayer[]|null }>}
+ *   donde LineupPlayer = { playerId, name, role } y role es forward | midfield | defense.
+ *   club2 es null en un amistoso sin rival.
+ */
+export async function getMatchLineups(matchId, { signal } = {}) {
+  if (USE_MOCKS) return getMatchLineupsMock(matchId, { signal });
+
+  const { data } = await api.get(`/matches/${encodeURIComponent(matchId)}/lineups`, { signal });
+  return data;
 }
 
 /**

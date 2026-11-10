@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, Outlet } from 'react-router-dom';
 import axios from 'axios';
 import { getBehaviors, PAGE_SIZE } from '../services/behaviorService';
+import TestBehaviorButton from '../components/TestBehaviorButton';
 import BehaviorFormDialog from '../components/BehaviorFormDialog';
 import './Behaviors.css';
 
@@ -39,6 +40,11 @@ export default function Behaviors() {
   const [notice, setNotice] = useState(null);
 
   const reloadList = () => setReloadKey((key) => key + 1);
+  // El detalle avisa que el comportamiento se eliminó o ya no está disponible.
+  const handleBehaviorRemoved = (message) => {
+    setNotice(message);
+    reloadList();
+  };
   const handleCreated = (behavior) => {
     setIsCreating(false);
     setNotice(`Comportamiento "${behavior.name}" creado correctamente.`);
@@ -134,6 +140,11 @@ export default function Behaviors() {
         </div>
       )}
 
+      {/* Barra de acciones: un único botón "Probar comportamiento" (no va por fila ni en el detalle). */}
+      <div className="behaviors__actions">
+        <TestBehaviorButton />
+      </div>
+
       <div className="behaviors__search">
         <label htmlFor="behavior-search">Buscar por nombre</label>
         <input
@@ -206,7 +217,7 @@ export default function Behaviors() {
       )}
 
       {/* Acá se dibuja el popup de detalle (ruta anidada /behaviors/:id). */}
-      <Outlet context={{ onBehaviorUpdated: reloadList }} />
+      <Outlet context={{ onBehaviorUpdated: reloadList, onBehaviorRemoved: handleBehaviorRemoved }} />
     </main>
   );
 }
