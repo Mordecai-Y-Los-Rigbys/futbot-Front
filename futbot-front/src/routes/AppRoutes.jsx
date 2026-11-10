@@ -19,6 +19,7 @@ import Match from '../pages/Match';
 import Players from '../pages/Players';
 import CreatePlayerPage from '../pages/CreatePlayerPage';
 import Ranking from '../pages/Ranking';
+import LeagueStandingsPage from '../pages/LeagueStandingsPage';
 
 // CreateFriendly es un modal: acá lo usamos como página y "Cancelar" vuelve al listado.
 // Va como componente aparte porque useNavigate solo funciona dentro del <BrowserRouter>.
@@ -56,6 +57,8 @@ export default function AppRoutes() {
             {/* Misma pantalla en las dos rutas: Leagues navega a /leagues/:id y CreateLeague a /leagues/:id/lobby.*/}
             <Route path="/leagues/:id" element={<LeagueLobby />} />
             <Route path="/leagues/:id/lobby" element={<LeagueLobby />} />
+            <Route path="/leagues/:id/ranking" element={<LeagueStandingsPage />} />
+
 
             {/* Amistosos */}
             <Route path="/friendlies" element={<Friendlies />} />
