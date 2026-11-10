@@ -6,11 +6,9 @@ import {
   getMatchMock,
   getMatchBehaviorMock,
   getMatchLineupsMock, 
-  getMatchMock,
   getMatchTeamMock,
   getSubstitutionsMock,
   reassignBehaviorMock,
-  getSubstitutionsMock,
   setSubstitutionMock,
 } from './matchMocks';
 
@@ -72,12 +70,6 @@ export async function getMatch(matchId, { signal } = {}) {
  * @returns {Promise<{ members: { playerId: number, name: string, role: string, behavior: object }[],
  *   coachBehavior: object|null }>}
  */
-export async function getMatchTeam(matchId, { signal } = {}) {
-  if (USE_MOCKS) return getMatchTeamMock(matchId);
-
-  const { data } = await api.get(`/matches/${encodeURIComponent(matchId)}/team`, { signal });
-  return data;
-}
 
 /**
  * Pide una sustitución (PUT /matches/{id}/substitutions): un suplente entra por un titular.
