@@ -4,6 +4,7 @@ import {
   createMatchConnectionMock,
   createMatchSocketMock,
   getMatchBehaviorMock,
+  getMatchLineupsMock, 
   getMatchMock,
   getMatchTeamMock,
   getSubstitutionsMock,
