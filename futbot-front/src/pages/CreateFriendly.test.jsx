@@ -33,15 +33,21 @@ const mockBehaviors = {
   total: 3,
 };
 
-// [label del jugador, label del comportamiento, jugador, comportamiento]
+// Por puesto (mismo orden que TeamBuilderForm): [jugador, comportamiento]
 const SLOTS = [
-  ['Delantero', 'Delantero - Comportamiento', '1', '101'],
-  ['Mediocampista', 'Mediocampista - Comportamiento', '2', '102'],
-  ['Defensor', 'Defensor - Comportamiento', '3', '103'],
-  ['Suplente 1', 'Suplente 1 - Comportamiento', '4', '101'],
-  ['Suplente 2', 'Suplente 2 - Comportamiento', '5', '102'],
-  ['Suplente 3', 'Suplente 3 - Comportamiento', '6', '103'],
+  ['1', '101'], // titular delantero
+  ['2', '102'], // titular mediocampista
+  ['3', '103'], // titular defensor
+  ['4', '101'], // suplente 1
+  ['5', '102'], // suplente 2
+  ['6', '103'], // suplente 3
 ];
+
+// Los ids los genera TeamBuilderForm (useId): se busca por sufijo.
+const playerSelect = (index) =>
+  screen.getByLabelText('Jugador', { selector: `select[id$="player-${index}"]` });
+const behaviorSelect = (index) =>
+  screen.getByLabelText('Comportamiento', { selector: `select[id$="behavior-${index}"]` });
 
 const renderComponent = (onClose = vi.fn()) =>
   render(
@@ -50,17 +56,15 @@ const renderComponent = (onClose = vi.fn()) =>
     </BrowserRouter>
   );
 
-// Los labels de jugador y comportamiento comparten la palabra del puesto,
-// por eso se usa match exacto (string) y no regex.
 const fillPlayers = () => {
-  SLOTS.forEach(([playerLabel, , playerId]) => {
-    fireEvent.change(screen.getByLabelText(playerLabel), { target: { value: playerId } });
+  SLOTS.forEach(([playerId], index) => {
+    fireEvent.change(playerSelect(index), { target: { value: playerId } });
   });
 };
 
 const fillBehaviors = () => {
-  SLOTS.forEach(([, behaviorLabel, , behaviorId]) => {
-    fireEvent.change(screen.getByLabelText(behaviorLabel), { target: { value: behaviorId } });
+  SLOTS.forEach(([, behaviorId], index) => {
+    fireEvent.change(behaviorSelect(index), { target: { value: behaviorId } });
   });
 };
 
@@ -86,8 +90,8 @@ describe('CreateFriendly (SCRUM-89)', () => {
     renderComponent();
     await waitForForm();
 
-    SLOTS.forEach(([, behaviorLabel]) => {
-      const select = screen.getByLabelText(behaviorLabel);
+    SLOTS.forEach((_, index) => {
+      const select = behaviorSelect(index);
       expect(select.querySelector('option[value="101"]')).toHaveTextContent('Ofensivo');
       expect(select.querySelector('option[value="102"]')).toHaveTextContent('Defensivo');
       expect(select.querySelector('option[value="103"]')).toHaveTextContent('Equilibrado');
@@ -118,7 +122,7 @@ describe('CreateFriendly (SCRUM-89)', () => {
     fireEvent.change(screen.getByLabelText(/nombre del partido/i), { target: { value: 'Amistoso Test' } });
     fillPlayers();
     fillBehaviors();
-    fireEvent.change(screen.getByLabelText('Suplente 3 - Comportamiento'), { target: { value: '' } });
+    fireEvent.change(behaviorSelect(5), { target: { value: '' } });
 
     expect(screen.getByRole('button', { name: /crear partido/i })).toBeDisabled();
   });
@@ -127,9 +131,9 @@ describe('CreateFriendly (SCRUM-89)', () => {
     renderComponent();
     await waitForForm();
 
-    fireEvent.change(screen.getByLabelText('Delantero'), { target: { value: '1' } });
+    fireEvent.change(playerSelect(0), { target: { value: '1' } });
 
-    const midfieldSelect = screen.getByLabelText('Mediocampista');
+    const midfieldSelect = playerSelect(1);
     expect(midfieldSelect.querySelector('option[value="1"]')).toBeDisabled();
   });
 
@@ -137,9 +141,9 @@ describe('CreateFriendly (SCRUM-89)', () => {
     renderComponent();
     await waitForForm();
 
-    fireEvent.change(screen.getByLabelText('Delantero - Comportamiento'), { target: { value: '101' } });
+    fireEvent.change(behaviorSelect(0), { target: { value: '101' } });
 
-    const midfieldBehavior = screen.getByLabelText('Mediocampista - Comportamiento');
+    const midfieldBehavior = behaviorSelect(1);
     expect(midfieldBehavior.querySelector('option[value="101"]')).not.toBeDisabled();
   });
 

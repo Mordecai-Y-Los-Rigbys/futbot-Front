@@ -9,16 +9,20 @@
   background: rgba(0, 0, 0, 0.6);
 }
 
+/* Colores del tema (claro/oscuro) y no fijos: los formularios dentro del modal heredan legibilidad. */
 .modal {
   width: 100%;
   max-width: 720px;
   max-height: 90vh;
   overflow-y: auto;
+  box-sizing: border-box;
   padding: 1.5rem;
-  border: 1px solid #3a3d4a;
+  border: 1px solid var(--border);
   border-radius: 12px;
-  background: #1f2028;
+  background: var(--bg);
+  color: var(--text);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  text-align: left;
 }
 
 .modal:focus {

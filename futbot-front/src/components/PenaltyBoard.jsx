@@ -6,27 +6,21 @@ const SIDES = [
   { side: 'club2', number: 2, fallbackName: 'Club 2' },
 ];
 
-// Un casillero: verde si fue gol, rojo si no (no se distingue tiempo agotado de pelota
-// en el arco propio) y vacío si todavía no se pateó. El color no va solo: también hay ✓/✗.
+// Un cuadradito: verde si fue gol, rojo si no (no se distingue tiempo agotado de pelota
+// en el arco propio) y vacío si todavía no se pateó. Es chico a propósito: no muestra ni
+// ✓/✗ ni el nombre del pateador. El detalle queda en el aria-label (lectores de pantalla).
 function PenaltySlot({ kick, round }) {
   const state = !kick ? 'empty' : kick.scored ? 'scored' : 'missed';
   const label = !kick
     ? `Penal ${round}: sin patear`
     : `Penal ${round}: ${kick.scored ? 'gol' : 'no convertido'}, ${kick.kickerName}`;
 
-  return (
-    <li className={`penalty-slot penalty-slot--${state}`} data-state={state} aria-label={label}>
-      <span className="penalty-slot__mark" aria-hidden="true">
-        {state === 'scored' ? '✓' : state === 'missed' ? '✗' : ''}
-      </span>
-      {kick && <span className="penalty-slot__name">{kick.kickerName}</span>}
-    </li>
-  );
+  return <li className={`penalty-slot penalty-slot--${state}`} data-state={state} aria-label={label} />;
 }
 
 /**
- * Una fila de 5 casilleros por club. Cada penal de `kicks` ocupa el casillero de su `round`
- * en la fila de su club (por lado, nunca por nombre).
+ * Una fila por club (nombre + 5 cuadraditos). Cada penal de `kicks` ocupa el casillero de su
+ * `round` en la fila de su club (por lado, nunca por nombre).
  *
  * @param kicks  lista de penales ya ejecutados (`penaltyKicks` o `result.penalties.kicks`)
  * @param clubs  [club1, club2] con `name` (puede faltar: se muestra "Club 1" / "Club 2")
@@ -40,7 +34,7 @@ export default function PenaltyBoard({ kicks, clubs }) {
         const name = clubs?.[index]?.name ?? fallbackName;
         return (
           <div className="penalty-board__row" key={side} style={{ '--team': TEAM_COLORS[number] }}>
-            <span className="penalty-board__club">{name}</span>
+            <span className="penalty-board__club" title={name}>{name}</span>
             <ol className="penalty-board__slots" aria-label={`Penales de ${name}`}>
               {slots[side].map((kick, i) => (
                 <PenaltySlot key={i} kick={kick} round={i + 1} />

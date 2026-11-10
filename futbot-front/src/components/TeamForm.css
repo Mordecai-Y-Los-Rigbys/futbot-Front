@@ -1,0 +1,195 @@
+/*
+ * Estilos de TODOS los formularios de equipo (TeamForm + TeamBuilderForm).
+ * Solo usan las variables de index.css (--bg, --text, --text-h, --border, --code-bg, --accent…),
+ * que ya cambian con el modo claro/oscuro: nada de colores fijos.
+ */
+.team-form {
+  --tf-surface: var(--code-bg);
+  --tf-danger: #b91c1c;
+  --tf-danger-bg: rgba(220, 38, 38, 0.1);
+  --tf-danger-border: rgba(220, 38, 38, 0.45);
+
+  box-sizing: border-box;
+  color: var(--text);
+  text-align: left;
+}
+
+@media (prefers-color-scheme: dark) {
+  .team-form {
+    --tf-danger: #fca5a5;
+    --tf-danger-bg: rgba(248, 113, 113, 0.14);
+    --tf-danger-border: rgba(248, 113, 113, 0.45);
+  }
+}
+
+.team-form--page {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.team-form--page > h1 {
+  margin: 0 0 24px;
+  font-size: 32px;
+  text-align: center;
+}
+
+.team-form [role='status'] {
+  padding: 1.5rem 0;
+  text-align: center;
+}
+
+/* ---- Campos propios de cada pantalla (children) ---- */
+.team-form__details {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.team-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--text-h);
+  font-size: 15px;
+}
+
+.team-form__field input:not([type='checkbox']),
+.team-form__field select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-h);
+  background: var(--bg);
+  font: inherit;
+}
+
+.team-form__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.team-form__check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-h);
+  font-size: 15px;
+}
+
+.team-form__hint {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.team-form__hint--end {
+  text-align: right;
+}
+
+/* ---- Error ---- */
+.team-form__error {
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--tf-danger-border);
+  border-radius: 8px;
+  background: var(--tf-danger-bg);
+  color: var(--tf-danger);
+  font-size: 14px;
+}
+
+.team-form__error ul {
+  margin: 6px 0 0;
+  padding-left: 1.2rem;
+}
+
+/* ---- Botones ---- */
+.team-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.team-form__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 8px 18px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-h);
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.team-form__btn:hover:not(:disabled) {
+  background: var(--tf-surface);
+}
+
+.team-form__btn--primary {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+  font-weight: 600;
+}
+
+.team-form__btn--primary:hover:not(:disabled) {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+}
+
+.team-form__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.team-form input:focus-visible,
+.team-form select:focus-visible,
+.team-form__btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.team-form__spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: team-form-spin 0.7s linear infinite;
+}
+
+@keyframes team-form-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .team-form__spinner {
+    animation-duration: 2s;
+  }
+}
+
+@media (max-width: 620px) {
+  .team-form--page {
+    padding: 1rem;
+  }
+
+  .team-form__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .team-form__actions > .team-form__btn {
+    flex: 1 1 auto;
+  }
+}

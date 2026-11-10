@@ -27,6 +27,9 @@ const behaviors = {
   total: 3,
 };
 
+// El panel arranca plegado: el contenido existe pero está oculto hasta tocar el botón.
+const openPanel = () => fireEvent.click(screen.getByRole('button', { name: /comportamientos/i }));
+
 describe('MatchBehaviorPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -63,8 +66,29 @@ describe('MatchBehaviorPanel', () => {
     });
   });
 
+  it('arranca plegado: solo se ve el botón y el contenido recién aparece al abrirlo', async () => {
+    render(<MatchBehaviorPanel matchId="42" canManage />);
+
+    const toggle = screen.getByRole('button', { name: /comportamientos/i });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    // Los datos se piden igual: al abrir el panel ya está todo listo.
+    await waitFor(() => expect(getMatchTeam).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole('list')).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Titular' })).not.toBeInTheDocument();
+
+    fireEvent.click(toggle);
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(await screen.findByRole('list')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Titular' })).toBeInTheDocument();
+
+    fireEvent.click(toggle);
+    expect(screen.queryByRole('list')).not.toBeInTheDocument();
+  });
+
   it('solo lista a los titulares: los suplentes no tienen comportamiento para cambiar', async () => {
     render(<MatchBehaviorPanel matchId="42" canManage />);
+    openPanel();
 
     const starterList = await screen.findByRole('list');
     expect(within(starterList).queryByText('Cami Suplente')).not.toBeInTheDocument();
@@ -73,6 +97,7 @@ describe('MatchBehaviorPanel', () => {
 
   it('vuelve a pedir el equipo cuando cambia teamVersion (se aplicó una sustitución)', async () => {
     const { rerender } = render(<MatchBehaviorPanel matchId="42" canManage teamVersion={0} />);
+    openPanel();
     await screen.findByRole('list');
     expect(getMatchTeam).toHaveBeenCalledTimes(1);
 
@@ -98,6 +123,8 @@ describe('MatchBehaviorPanel', () => {
 
     render(<MatchBehaviorPanel matchId="42" canManage />);
 
+    openPanel();
+
     const starterList = await screen.findByRole('list');
     expect(within(starterList).getByText('Ada Delantera')).toBeInTheDocument();
     expect(within(starterList).getByText('Ofensivo')).toBeInTheDocument();
@@ -116,6 +143,7 @@ describe('MatchBehaviorPanel', () => {
   it('confirma y envía el cambio del titular seleccionado', async () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
     render(<MatchBehaviorPanel matchId="42" canManage />);
+    openPanel();
 
     await screen.findByRole('list');
     fireEvent.change(screen.getByLabelText('Titular'), { target: { value: '2' } });
@@ -128,9 +156,11 @@ describe('MatchBehaviorPanel', () => {
     expect(confirmSpy).toHaveBeenCalledWith(
       '¿Cambiar el comportamiento de Bea Mediocampista a "Equilibrado"?',
     );
-    expect(await screen.findByText('· Pendiente: Equilibrado')).toBeInTheDocument();
-    expect(screen.getByText('Defensivo')).toBeInTheDocument();
-    expect(screen.getByText('Cambio confirmado. Se aplicará desde el siguiente tick.')).toBeInTheDocument();
+    expect(await screen.findByText('Cambio confirmado. Se aplicará desde el siguiente tick.')).toBeInTheDocument();
+    const starterList = screen.getByRole('list');
+    const row = within(starterList).getByText('Bea Mediocampista').closest('li');
+    expect(within(row).getByText('Equilibrado')).toBeInTheDocument();
+    expect(within(starterList).queryByText('Defensivo')).not.toBeInTheDocument();
   });
 
   it('muestra errores de negocio del servidor', async () => {
@@ -139,6 +169,7 @@ describe('MatchBehaviorPanel', () => {
       response: { status: 409, data: { code: 'matchNotInProgress' } },
     });
     render(<MatchBehaviorPanel matchId="42" canManage />);
+    openPanel();
 
     await screen.findByRole('list');
     fireEvent.change(screen.getByLabelText('Nuevo comportamiento'), { target: { value: '13' } });

@@ -17,7 +17,6 @@ import Friendlies from '../pages/Friendlies';
 import CreateFriendly from '../pages/CreateFriendly';
 import JoinFriendly from '../pages/JoinFriendly';
 import Match from '../pages/Match';
-import Players from '../pages/Players';
 import CreatePlayerPage from '../pages/CreatePlayerPage';
 import Ranking from '../pages/Ranking';
 import LeagueStandingsPage from '../pages/LeagueStandingsPage';
@@ -74,7 +73,8 @@ export default function AppRoutes() {
             <Route path="/matches/:id" element={<Match />} />
 
             {/* Jugadores */}
-            <Route path="/players" element={<Players />} />
+            {/* El listado ya no existe: los links viejos a /players van a la creación. */}
+            <Route path="/players" element={<Navigate to="/players/new" replace />} />
             <Route path="/players/new" element={<CreatePlayerPage />} />
 
             {/* Ranking global */}

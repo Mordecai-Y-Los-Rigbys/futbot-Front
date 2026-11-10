@@ -1,10 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getBehaviors } from '../services/behaviorService';
-import { getPlayers } from '../services/playerService';
 import { createLeague } from '../services/leagueService';
-import TeamBuilderForm from '../components/TeamBuilderForm';
-import './CreateLeague.css';
+import TeamForm from '../components/TeamForm';
+import useTeamOptions from '../hooks/useTeamOptions';
 
 // Modo de la liga. `normal` permite empates (allowDraws: true); `penalties` los define por penales.
 const MODE_OPTIONS = [
@@ -13,8 +11,12 @@ const MODE_OPTIONS = [
 ];
 const DEFAULT_MODE = 'normal';
 
+const toNumberOrEmpty = (value) => (value === '' ? '' : Number(value));
+
 export default function CreateLeague() {
   const navigate = useNavigate();
+  const { players, behaviors, isLoading, error: loadError } = useTeamOptions();
+
   const [name, setName] = useState('');
   const [minParticipants, setMinParticipants] = useState(3);
   const [maxParticipants, setMaxParticipants] = useState(8);
@@ -22,65 +24,20 @@ export default function CreateLeague() {
   const [isPrivate, setIsPrivate] = useState(false);
   const [mode, setMode] = useState(DEFAULT_MODE);
   const [password, setPassword] = useState('');
-  const [players, setPlayers] = useState([]);
-  const [behaviors, setBehaviors] = useState([]);
-  const [members, setMembers] = useState(null);
-  const [isLoadingData, setIsLoadingData] = useState(true);
-  const [dataErrorMessage, setDataErrorMessage] = useState(null);
   const [submitErrorMessage, setSubmitErrorMessage] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    const controller = new AbortController();
-
-    Promise.all([
-      getPlayers(1, { signal: controller.signal }),
-      getBehaviors('', 1, { signal: controller.signal }),
-    ])
-      .then(([playersData, behaviorsData]) => {
-        setPlayers(playersData);
-        setBehaviors(
-          Array.isArray(behaviorsData) ? behaviorsData : (behaviorsData?.items ?? []),
-        );
-        setIsLoadingData(false);
-      })
-      .catch(() => {
-        if (controller.signal.aborted) return;
-        setDataErrorMessage('No pudimos cargar tus jugadores o comportamientos.');
-        setIsLoadingData(false);
-      });
-
-    return () => controller.abort();
-  }, []);
-
-  if (isLoadingData) {
-    return <p role="status">Cargando jugadores y comportamientos…</p>;
-  }
-
-  if (dataErrorMessage) {
-    return (
-      <main className="create-league">
-        <h1>Crear Liga</h1>
-        <p role="alert">{dataErrorMessage}</p>
-      </main>
-    );
-  }
-
-  const isFormValid =
+  // Validez de los datos de la liga. El equipo (6 miembros) lo valida TeamForm.
+  const detailsValid =
     name.trim().length > 0 &&
     name.length <= 20 &&
     Number(minParticipants) >= 3 &&
     Number(maxParticipants) >= Number(minParticipants) &&
     Number(matchDuration) >= 1 &&
     Number(matchDuration) <= 10 &&
-    (!isPrivate || (password.length > 0 && password.length <= 72)) &&
-    Array.isArray(members) &&
-    members.length === 6;
+    (!isPrivate || (password.length > 0 && password.length <= 72));
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    if (!isFormValid || isSubmitting) return;
-
+  const handleSubmit = async (members) => {
     setIsSubmitting(true);
     setSubmitErrorMessage(null);
 
@@ -115,127 +72,113 @@ export default function CreateLeague() {
   };
 
   return (
-    <main className="create-league">
-      <h1>Crear Liga</h1>
-      <form onSubmit={handleSubmit}>
-        {submitErrorMessage && <p role="alert">{submitErrorMessage}</p>}
-        <section className="create-league__details" aria-label="Datos de la liga">
-          <label className="create-league__field">
-            Nombre de la liga
-            <input
-              type="text"
-              name="name"
-              value={name}
-              maxLength={20}
-              onChange={(event) => setName(event.target.value)}
-            />
-          </label>
-          <div className="create-league__number-fields">
-            <label className="create-league__field">
-              Mínimo de participantes
-              <input
-                type="number"
-                name="minParticipants"
-                min="3"
-                value={minParticipants}
-                onChange={(event) =>
-                  setMinParticipants(event.target.value === '' ? '' : Number(event.target.value))
-                }
-              />
-            </label>
-            <label className="create-league__field">
-              Máximo de participantes
-              <input
-                type="number"
-                name="maxParticipants"
-                min="3"
-                value={maxParticipants}
-                onChange={(event) =>
-                  setMaxParticipants(event.target.value === '' ? '' : Number(event.target.value))
-                }
-              />
-            </label>
-            <label className="create-league__field">
-              Duración del partido (minutos)
-              <input
-                type="number"
-                name="matchDuration"
-                min="1"
-                max="10"
-                value={matchDuration}
-                onChange={(event) =>
-                  setMatchDuration(event.target.value === '' ? '' : Number(event.target.value))
-                }
-              />
-            </label>
-          </div>
-          <label className="create-league__privacy">
-            <input
-              type="checkbox"
-              name="private"
-              checked={isPrivate}
-              onChange={(event) => {
-                const checked = event.target.checked;
-                setIsPrivate(checked);
-                if (!checked) setPassword('');
-              }}
-            />
-            Privada
-          </label>
-          <div className="create-league__field">
-            <label htmlFor="create-league-mode">Modo de la liga</label>
-            <select
-              id="create-league-mode"
-              name="mode"
-              value={mode}
-              aria-describedby="create-league-mode-help"
-              onChange={(event) => setMode(event.target.value)}
-              required
-            >
-              {MODE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <small id="create-league-mode-help" className="create-league__help">
-              Si la tanda de penales queda empatada, el ganador se define por sorteo.
-            </small>
-          </div>
-          {isPrivate && (
-            <label className="create-league__field">
-              Contraseña
-              <input
-                type="password"
-                name="password"
-                value={password}
-                maxLength={72}
-                onChange={(event) => setPassword(event.target.value)}
-                required
-              />
-            </label>
-          )}
-        </section>
-        <TeamBuilderForm
-          players={players}
-          behaviors={behaviors}
-          value={members}
-          onChange={setMembers}
+    <TeamForm
+      title="Crear Liga"
+      players={players}
+      behaviors={behaviors}
+      isLoading={isLoading}
+      loadError={loadError}
+      onSubmit={handleSubmit}
+      canSubmit={detailsValid}
+      isSubmitting={isSubmitting}
+      submitLabel="Crear Liga"
+      submittingLabel="Creando Liga…"
+      error={submitErrorMessage}
+      onCancel={() => navigate('/leagues')}
+    >
+      <label className="team-form__field">
+        Nombre de la liga
+        <input
+          type="text"
+          name="name"
+          value={name}
+          maxLength={20}
+          onChange={(event) => setName(event.target.value)}
         />
-        <button
-          className="create-league__submit"
-          type="submit"
-          disabled={!isFormValid || isSubmitting}
+      </label>
+
+      <div className="team-form__grid">
+        <label className="team-form__field">
+          Mínimo de participantes
+          <input
+            type="number"
+            name="minParticipants"
+            min="3"
+            value={minParticipants}
+            onChange={(event) => setMinParticipants(toNumberOrEmpty(event.target.value))}
+          />
+        </label>
+        <label className="team-form__field">
+          Máximo de participantes
+          <input
+            type="number"
+            name="maxParticipants"
+            min="3"
+            value={maxParticipants}
+            onChange={(event) => setMaxParticipants(toNumberOrEmpty(event.target.value))}
+          />
+        </label>
+        <label className="team-form__field">
+          Duración del partido (minutos)
+          <input
+            type="number"
+            name="matchDuration"
+            min="1"
+            max="10"
+            value={matchDuration}
+            onChange={(event) => setMatchDuration(toNumberOrEmpty(event.target.value))}
+          />
+        </label>
+      </div>
+
+      <label className="team-form__check">
+        <input
+          type="checkbox"
+          name="private"
+          checked={isPrivate}
+          onChange={(event) => {
+            const { checked } = event.target;
+            setIsPrivate(checked);
+            if (!checked) setPassword('');
+          }}
+        />
+        Privada
+      </label>
+
+      <div className="team-form__field">
+        <label htmlFor="create-league-mode">Modo de la liga</label>
+        <select
+          id="create-league-mode"
+          name="mode"
+          value={mode}
+          aria-describedby="create-league-mode-help"
+          onChange={(event) => setMode(event.target.value)}
+          required
         >
-          {isSubmitting ? (
-            <>
-              <span className="create-league__spinner" aria-hidden="true" />
-              Creando Liga…
-            </>
-          ) : 'Crear Liga'}
-        </button>
-      </form>
-    </main>
+          {MODE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <small id="create-league-mode-help" className="team-form__hint">
+          Si la tanda de penales queda empatada, el ganador se define por sorteo.
+        </small>
+      </div>
+
+      {isPrivate && (
+        <label className="team-form__field">
+          Contraseña
+          <input
+            type="password"
+            name="password"
+            value={password}
+            maxLength={72}
+            onChange={(event) => setPassword(event.target.value)}
+            required
+          />
+        </label>
+      )}
+    </TeamForm>
   );
 }
-

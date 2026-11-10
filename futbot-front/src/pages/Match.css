@@ -229,17 +229,17 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  margin-top: 8px;
-  padding: 8px 14px;
-  max-width: min(560px, 92%);
+  gap: 4px;
+  margin-top: 6px;
+  padding: 6px 12px;
+  max-width: min(420px, 92%);
   box-sizing: border-box;
   background: rgba(10, 14, 12, 0.78);
   border-radius: 10px;
 }
 
 .shootout__score {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -248,8 +248,8 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 4px 16px;
-  font-size: 14px;
+  gap: 2px 14px;
+  font-size: 13px;
 }
 
 .shootout__timer {
@@ -278,51 +278,46 @@
   color: #ffd54f;
 }
 
+/* Tanda de penales compacta: dos filas (club + 5 cuadraditos verde/rojo). */
 .penalty-board {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   max-width: 100%;
 }
 
 .penalty-board__row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .penalty-board__club {
   flex: none;
-  width: 110px;
-  padding-left: 8px;
+  width: 96px;
+  padding-left: 6px;
   overflow: hidden;
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
-  border-left: 4px solid var(--team);
+  font-size: 12px;
+  line-height: 1.2;
+  border-left: 3px solid var(--team);
 }
 
 .penalty-board__slots {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .penalty-slot {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 64px;
-  min-height: 38px;
-  padding: 2px 3px;
+  width: 16px;
+  height: 16px;
   box-sizing: border-box;
-  font-size: 11px;
-  line-height: 1.2;
-  border-radius: 6px;
+  border-radius: 3px;
   border: 2px solid transparent;
 }
 
@@ -331,31 +326,18 @@
 }
 
 .penalty-slot--scored {
-  background: #2e7d32;
+  background: #43a047;
 }
 
 .penalty-slot--missed {
-  background: #c62828;
-}
-
-.penalty-slot__mark {
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.penalty-slot__name {
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  background: #e53935;
 }
 
 @media (max-width: 600px) {
   .final__score { font-size: 32px; }
-  .penalty-board__club { width: 72px; font-size: 12px; }
-  .penalty-board__slots { gap: 4px; }
-  .penalty-slot { width: 46px; font-size: 10px; }
+  .penalty-board__club { width: 72px; font-size: 11px; }
+  .penalty-board__slots { gap: 3px; }
+  .penalty-slot { width: 14px; height: 14px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPlayer } from '../services/playerService';
 import './CreatePlayerPage.css';
@@ -13,6 +13,8 @@ const INITIAL_STATS = {
 };
 
 const MAX_POINTS = 300;
+const MIN_STAT = 20;
+const MAX_STAT = 100;
 
 // Claves del payload y sus etiquetas correspondientes.
 const STAT_LABELS = {
@@ -31,7 +33,6 @@ export default function CreatePlayerPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
-  const redirectTimer = useRef(null);
 
   // El total y los errores se derivan del formulario para mantenerse sincronizados con cada cambio.
   const pointsUsed = Object.values(stats).reduce((total, value) => total + value, 0);
@@ -47,8 +48,8 @@ export default function CreatePlayerPage() {
 
   // Comprueba el rango individual de cada estadística.
   Object.entries(stats).forEach(([stat, value]) => {
-    if (!Number.isInteger(value) || value < 20 || value > 100) {
-      validationErrors.push(`${STAT_LABELS[stat]} debe estar entre 20 y 100.`);
+    if (!Number.isInteger(value) || value < MIN_STAT || value > MAX_STAT) {
+      validationErrors.push(`${STAT_LABELS[stat]} debe estar entre ${MIN_STAT} y ${MAX_STAT}.`);
     }
   });
 
@@ -62,19 +63,25 @@ export default function CreatePlayerPage() {
 
   const isFormValid = validationErrors.length === 0;
 
-  // Evita que una redirección pendiente intente navegar tras desmontar la pantalla.
-  useEffect(() => () => window.clearTimeout(redirectTimer.current), []);
-
-  // Actualiza solo la estadística cuyo slider cambió.
+  // Actualiza solo la estadística cuyo slider cambió. El total nunca pasa de MAX_POINTS:
+  // si el slider quiere subir más de lo que queda, se frena en el tope.
   const handleStatChange = (event) => {
     const { name: stat, value } = event.target;
-    setStats((currentStats) => ({ ...currentStats, [stat]: Number(value) }));
+    setSuccessMessage('');
+    setStats((currentStats) => {
+      const usedByOthers = Object.entries(currentStats)
+        .reduce((total, [key, current]) => (key === stat ? total : total + current), 0);
+      const highestAllowed = Math.min(MAX_STAT, MAX_POINTS - usedByOthers);
+      const next = Math.max(MIN_STAT, Math.min(Number(value), highestAllowed));
+      return { ...currentStats, [stat]: next };
+    });
   };
 
   // Envía únicamente formularios válidos y administra los estados de carga, éxito y error.
   const handleSubmit = async (event) => {
     event.preventDefault();
     setErrorMessage('');
+    setSuccessMessage('');
 
     if (!isFormValid || isSubmitting) return;
 
@@ -85,8 +92,10 @@ export default function CreatePlayerPage() {
         name: name.trim(),
         ...stats,
       });
-      setSuccessMessage('¡Jugador creado correctamente! Redirigiendo al listado…');
-      redirectTimer.current = window.setTimeout(() => navigate('/players'), 1200);
+      // No se redirige: se avisa y se deja el formulario limpio para crear otro jugador.
+      setName('');
+      setStats(INITIAL_STATS);
+      setSuccessMessage('¡Jugador creado correctamente!');
     } catch (error) {
       const responseData = error.response?.data;
       setErrorMessage(
@@ -114,10 +123,13 @@ export default function CreatePlayerPage() {
             name="name"
             type="text"
             value={name}
-            onChange={(event) => setName(event.target.value)}
+            onChange={(event) => {
+              setName(event.target.value);
+              setSuccessMessage('');
+            }}
             maxLength={20}
             autoComplete="off"
-            disabled={isSubmitting || Boolean(successMessage)}
+            disabled={isSubmitting}
           />
         </div>
         <fieldset className="create-player-page__stats">
@@ -131,12 +143,12 @@ export default function CreatePlayerPage() {
                 id={`player-${stat}`}
                 name={stat}
                 type="range"
-                min="20"
-                max="100"
+                min={MIN_STAT}
+                max={MAX_STAT}
                 step="1"
                 value={stats[stat]}
                 onChange={handleStatChange}
-                disabled={isSubmitting || Boolean(successMessage)}
+                disabled={isSubmitting}
               />
             </div>
           ))}
@@ -159,15 +171,15 @@ export default function CreatePlayerPage() {
           <button
             className="create-player-page__cancel"
             type="button"
-            onClick={() => navigate('/players')}
-            disabled={isSubmitting || Boolean(successMessage)}
+            onClick={() => navigate('/')}
+            disabled={isSubmitting}
           >
             Cancelar
           </button>
           <button
             className="create-player-page__submit"
             type="submit"
-            disabled={!isFormValid || isSubmitting || Boolean(successMessage)}
+            disabled={!isFormValid || isSubmitting}
           >
             {isSubmitting ? 'Creando jugador…' : 'Crear jugador'}
           </button>
