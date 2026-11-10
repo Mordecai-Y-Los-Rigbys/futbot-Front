@@ -24,8 +24,8 @@ export const PAGE_SIZE = 50;
  *   el cliente, lo que rompería la paginación. Sin `type` trae ambos tipos.
  * @returns {Promise<{ items: {id: number, name: string, type: string}[], page: number, pageSize: number, total: number }>}
  */
-export async function getBehaviors(name, page = 1, { signal, type } = {}) {
-  if (USE_MOCKS) return getBehaviorsMock(name, page, { signal, type });
+export async function getBehaviors(name, page = 1, { signal } = {}) {
+  if (USE_MOCKS) return getBehaviorsMock(name, page, { signal });
 
   const { data } = await api.get('/behaviors/me', {
     // Con `undefined` axios omite el parámetro, así `?name=` o `?type=` no viajan vacíos.

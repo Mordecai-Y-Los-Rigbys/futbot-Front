@@ -122,5 +122,5 @@ export function openMatchSocket(matchId, tokenWs) {
 }
 
 // TODO: datos estáticos del partido (nombre/usuario/avatar de cada club y, por jugador,
-// nombre y atributos). El tick del WS solo trae `playerId` y posición, así que esto
-// tiene que salir de otro endpoint REST. Pendiente de definir el contrato.
+// nombre, atributos y behavior activo). El tick del WS solo trae `playerId` y posición,
+// así que esto tiene que salir de otro endpoint REST. Pendiente de definir el contrato.
