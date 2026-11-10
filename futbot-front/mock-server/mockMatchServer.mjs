@@ -3,7 +3,9 @@
 //   POST /matches/{id}/connections           -> { tokenWs, role }
 //   GET  /matches/{id}                       -> Match (club2 null hasta que arranca)
 //   GET  /matches/{id}/lineups               -> titulares de ambos clubes
-//   GET  /matches/{id}/substitutions[/next]  -> cambio de ejemplo (409 si no está en juego)
+//   GET  /matches/{id}/team                  -> los 6 jugadores del club1 (members) con sus roles
+//   GET  /matches/{id}/substitutions         -> pendiente (aplicada durante una pausa); 409 si no está en juego
+//   PUT  /matches/{id}/substitutions         -> 204; queda pendiente y se aplica al empezar la próxima pausa
 //   WS   /ws/matches/{id}?token=...          -> ticks a 20/seg
 //
 // Uso:  npm i -D ws   &&   node mock-server/mockMatchServer.mjs
@@ -39,6 +41,18 @@ const USER = { id: 1, username: 'santi', clubName: 'FC Santi' };
 const CLUB1 = { id: 1, username: 'santi', name: 'FC Santi', avatar: 1 };
 const CLUB2 = { id: 2, username: 'rival', name: 'Rival FC', avatar: 2 };
 
+const SUB_NAMES = { 7: 'Ángel Di María', 8: 'Julián Álvarez', 9: 'Emiliano Martínez' };
+const NAME_OF = { ...PLAYER_NAMES, ...SUB_NAMES };
+const initialTeam = () => [
+  { playerId: 1, role: 'forward' },
+  { playerId: 2, role: 'midfield' },
+  { playerId: 3, role: 'defense' },
+  { playerId: 7, role: 'substitute' },
+  { playerId: 8, role: 'substitute' },
+  { playerId: 9, role: 'substitute' },
+];
+const STARTER_ROLES = ['forward', 'midfield', 'defense'];
+
 const tokens = new Map(); // tokenWs -> matchId
 const matches = new Map(); // matchId -> estado del partido
 
@@ -54,6 +68,10 @@ function getState(id) {
       status: id === '999' ? 'finished' : 'scheduled',
       createdAt: new Date().toISOString(),
       result: null,
+      team: initialTeam(), // equipo de club1 (el usuario del mock)
+      pending: null, // { starterId, substituteId } pedida y todavía no aplicada
+      applied: null, // la aplicada al empezar la pausa en curso
+      paused: false,
     };
     matches.set(id, m);
   }
@@ -71,6 +89,25 @@ const matchBody = (id, m) => ({
   createdAt: m.createdAt,
   result: m.result,
 });
+
+const subView = (m, sub) => ({
+  starterName: NAME_OF[sub.starterId],
+  substituteName: NAME_OF[sub.substituteId],
+});
+
+// Al empezar la pausa se aplica la pendiente: el suplente toma el rol del titular y viceversa.
+function applyPending(m) {
+  m.applied = null;
+  if (m.pending) {
+    const starter = m.team.find((p) => p.playerId === m.pending.starterId);
+    const sub = m.team.find((p) => p.playerId === m.pending.substituteId);
+    if (starter && sub) {
+      [starter.role, sub.role] = [sub.role, starter.role];
+      m.applied = m.pending;
+    }
+    m.pending = null;
+  }
+}
 
 // ---------------------------------------------------------------- REST
 const send = (res, status, body) => {
@@ -121,19 +158,64 @@ const server = http.createServer((req, res) => {
   route = path.match(/^\/matches\/(\w+)\/lineups$/);
   if (req.method === 'GET' && route) {
     const m = getState(route[1]);
-    return send(res, 200, { club1: lineups(0), club2: m.running ? lineups(1) : null });
+    const starters = m.team
+      .filter((p) => STARTER_ROLES.includes(p.role))
+      .map((p) => ({ playerId: p.playerId, name: NAME_OF[p.playerId], role: p.role }));
+    return send(res, 200, { club1: starters, club2: m.running ? lineups(1) : null });
   }
 
-  route = path.match(/^\/matches\/(\w+)\/substitutions(?:\/next)?$/);
+  route = path.match(/^\/matches\/(\w+)\/team$/);
   if (req.method === 'GET' && route) {
+    const m = getState(route[1]);
+    return send(res, 200, {
+      members: m.team.map((p) => ({
+        playerId: p.playerId,
+        name: NAME_OF[p.playerId],
+        role: p.role,
+        behavior: { id: p.playerId, name: 'Ofensivo', type: 'playerBehavior' },
+      })),
+      coachBehavior: null,
+    });
+  }
+
+  route = path.match(/^\/matches\/(\w+)\/substitutions$/);
+  if (route && (req.method === 'GET' || req.method === 'PUT')) {
     const m = getState(route[1]);
     if (m.status !== 'started') {
       return send(res, 409, { code: 'matchNotStarted', message: 'El partido no está en juego.' });
     }
-    return send(res, 200, {
-      club1: { starterName: PLAYER_NAMES[1], substituteName: 'Ángel Di María' },
-      club2: null,
+    if (req.method === 'GET') {
+      const shown = m.paused ? m.applied : m.pending;
+      return send(res, 200, { club1: shown ? subView(m, shown) : null, club2: null });
+    }
+    let raw = '';
+    req.on('data', (chunk) => (raw += chunk));
+    req.on('end', () => {
+      let body = {};
+      try {
+        body = JSON.parse(raw);
+      } catch {
+        // body ilegible: se trata como si faltaran los campos
+      }
+      const errors = [];
+      for (const field of ['starterId', 'substituteId']) {
+        if (body[field] === undefined) errors.push({ field, reason: 'required' });
+        else if (!Number.isInteger(body[field])) errors.push({ field, reason: 'invalidType' });
+      }
+      if (!errors.length) {
+        const starter = m.team.find((p) => p.playerId === body.starterId);
+        const sub = m.team.find((p) => p.playerId === body.substituteId);
+        if (!starter || !STARTER_ROLES.includes(starter.role)) errors.push({ field: 'starterId', reason: 'notStarter' });
+        if (!sub || sub.role !== 'substitute') errors.push({ field: 'substituteId', reason: 'notSubstitute' });
+      }
+      if (errors.length) {
+        return send(res, 400, { code: 'invalidFields', message: 'Revisá los campos marcados.', errors });
+      }
+      m.pending = { starterId: body.starterId, substituteId: body.substituteId }; // reemplaza a la anterior
+      log(`PUT /matches/${route[1]}/substitutions -> 204 (pendiente)`);
+      res.writeHead(204).end();
     });
+    return;
   }
 
   send(res, 404, { code: null, message: 'mock: ruta no implementada' });
@@ -198,6 +280,12 @@ function startSimulation(id, match) {
   const timer = setInterval(() => {
     const tick = sim.step();
     if (['playing', 'paused', 'penalties'].includes(tick.phase)) match.status = 'started';
+
+    if (tick.event?.type === 'pause') {
+      match.paused = true;
+      applyPending(match);
+    }
+    if (tick.phase !== 'paused') match.paused = false;
 
     const payload = JSON.stringify(tick);
     match.clients.forEach((c) => c.readyState === 1 && c.send(payload));

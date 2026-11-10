@@ -1,0 +1,132 @@
+.substitution__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  max-width: 1080px;
+  margin: 0 auto 10px;
+}
+
+.substitution__open,
+.substitution__submit,
+.substitution__cancel,
+.substitution__error button {
+  box-sizing: border-box;
+  min-height: 36px;
+  padding: 6px 16px;
+  border: 0;
+  border-radius: 6px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.substitution__open,
+.substitution__submit,
+.substitution__error button {
+  background: #1976d2;
+  color: #fff;
+}
+
+.substitution__cancel {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: inherit;
+}
+
+.substitution__open:disabled,
+.substitution__submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.substitution__hint {
+  margin: 0;
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+.substitution__pending,
+.substitution__notice {
+  margin: 0;
+  font-size: 14px;
+}
+
+.substitution__notice {
+  color: #2e7d32;
+}
+
+.substitution__backdrop {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.substitution__dialog {
+  box-sizing: border-box;
+  width: min(420px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 10px;
+  background: rgba(10, 14, 12, 0.96);
+  box-shadow: var(--shadow);
+  color: #fff;
+  text-align: left;
+}
+
+.substitution__title {
+  margin: 0 0 6px;
+  color: inherit;
+  font-size: 18px;
+}
+
+.substitution__help {
+  margin: 0 0 12px;
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+.substitution__form {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.substitution__form select {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 38px;
+  padding: 6px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 5px;
+  background: #fff;
+  color: #151515;
+  font: inherit;
+}
+
+.substitution__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.substitution__error,
+.substitution__error-text {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: #ffcdd2;
+}
+
+.substitution__open:focus-visible,
+.substitution__dialog button:focus-visible,
+.substitution__dialog select:focus-visible {
+  outline: 2px solid #ffd54f;
+  outline-offset: 2px;
+}

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import api from './api';
-import { buildWsUrl, getMatchBehavior, getMatchTeam, reassignBehavior } from './matchService';
+import { buildWsUrl, getMatchBehavior, getMatchTeam, reassignBehavior, setSubstitution } from './matchService';
 
 vi.mock('./api', () => ({
   default: {
@@ -59,8 +59,8 @@ describe('servicios de comportamiento del partido', () => {
     api.put.mockReset();
   });
 
-  it('obtiene los titulares del equipo y permite cancelar la request', async () => {
-    const team = { starters: [] };
+  it('obtiene el equipo (members) y permite cancelar la request', async () => {
+    const team = { members: [], coachBehavior: null };
     const controller = new AbortController();
     api.get.mockResolvedValue({ data: team });
 
@@ -93,5 +93,34 @@ describe('servicios de comportamiento del partido', () => {
     api.put.mockRejectedValue(new Error('boom'));
 
     await expect(reassignBehavior(7, { playerId: 3, behaviorId: 22 })).rejects.toThrow('boom');
+  });
+});
+
+describe('setSubstitution', () => {
+  beforeEach(() => {
+    api.put.mockReset();
+  });
+
+  it('hace PUT /matches/{id}/substitutions con starterId y substituteId', async () => {
+    api.put.mockResolvedValue({ status: 204 });
+
+    await expect(setSubstitution(7, { starterId: 1, substituteId: 8 })).resolves.toBeUndefined();
+
+    expect(api.put).toHaveBeenCalledWith('/matches/7/substitutions', { starterId: 1, substituteId: 8 });
+  });
+
+  it('codifica el id del partido', async () => {
+    api.put.mockResolvedValue({ status: 204 });
+
+    await setSubstitution('a/b', { starterId: 1, substituteId: 8 });
+
+    expect(api.put).toHaveBeenCalledWith('/matches/a%2Fb/substitutions', { starterId: 1, substituteId: 8 });
+  });
+
+  it('propaga los errores de la API (400 / 403 / 404 / 409)', async () => {
+    const error = { response: { status: 409, data: { code: 'noPausesLeft' } } };
+    api.put.mockRejectedValue(error);
+
+    await expect(setSubstitution(7, { starterId: 1, substituteId: 8 })).rejects.toBe(error);
   });
 });

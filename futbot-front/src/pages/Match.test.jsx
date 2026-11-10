@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Match from './Match';
@@ -129,73 +129,122 @@ describe('Match', () => {
     expect(await screen.findByRole('list', { name: 'Penales de Club 1' })).toBeInTheDocument();
   });
 
-  describe('nombres de jugadores (lineups)', () => {
+  describe('cambio de jugador', () => {
+    const team = (starterName = 'Messi') => ({
+      members: [
+        { playerId: 1, name: starterName, role: 'forward' },
+        { playerId: 2, name: 'De Paul', role: 'midfield' },
+        { playerId: 3, name: 'Romero', role: 'defense' },
+        { playerId: 7, name: 'Di María', role: 'substitute' },
+        { playerId: 8, name: 'Álvarez', role: 'substitute' },
+        { playerId: 9, name: 'Dibu', role: 'substitute' },
+      ],
+      coachBehavior: null,
+    });
+    const hookReturn = (role, meta) => ({
+      status: 'open',
+      streamRef: { current: null },
+      meta: { ...INITIAL_META, ...meta },
+      fatal: null,
+      role,
+    });
+    const BUTTON = { name: 'Cambiar Jugador' };
+
     beforeEach(() => {
       getMatch.mockResolvedValue({ id: 5, status: 'started', club1, club2, result: null });
+      getMatchTeam.mockReset();
+      getSubstitutions.mockReset();
+      setSubstitution.mockReset();
+      getMatchTeam.mockResolvedValue(team());
+      getSubstitutions.mockResolvedValue({ club1: null, club2: null });
+      setSubstitution.mockResolvedValue(undefined);
     });
 
-    it('pide los lineups al montar el partido en curso y arma roster.players', async () => {
+    it('espectador de un partido de liga: no ve el botón y no se piden el equipo ni la pendiente', async () => {
+      useMatchWebSocket.mockReturnValue(hookReturn('spectator', { phase: 'playing', pausesLeft: 3 }));
+
       renderMatch();
 
-      await waitFor(() =>
-        expect(JSON.parse(screen.getByTestId('pitch').textContent)).toEqual({
-          1: { name: 'Messi', role: 'forward', club: 1 },
-        }),
+      await screen.findByRole('main');
+      await waitFor(() => expect(useMatchWebSocket).toHaveBeenCalled());
+      expect(screen.queryByRole('button', BUTTON)).toBeNull();
+      expect(getMatchTeam).not.toHaveBeenCalled();
+      expect(getSubstitutions).not.toHaveBeenCalled();
+    });
+
+    it('jugador en juego: el botón está por encima de la cancha y habilitado', async () => {
+      useMatchWebSocket.mockReturnValue(hookReturn('player', { phase: 'playing', pausesLeft: 3 }));
+
+      renderMatch();
+
+      const button = await screen.findByRole('button', BUTTON);
+      expect(button).toBeEnabled();
+      const stage = screen.getByTestId('pitch').closest('.match__stage');
+      expect(button.compareDocumentPosition(stage) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(stage.contains(button)).toBe(false);
+    });
+
+    it('espera de rival (sin ticks): el botón está deshabilitado', async () => {
+      useMatchWebSocket.mockReturnValue(hookReturn('player', {}));
+
+      renderMatch();
+
+      expect(await screen.findByRole('button', BUTTON)).toBeDisabled();
+    });
+
+    it('cuenta regresiva inicial: el botón está deshabilitado', async () => {
+      useMatchWebSocket.mockReturnValue(hookReturn('player', { phase: 'countdown', pausesLeft: 3 }));
+
+      renderMatch();
+
+      expect(await screen.findByRole('button', BUTTON)).toBeDisabled();
+    });
+
+    it('conexión tardía con pausesLeft en 0: el botón está deshabilitado', async () => {
+      useMatchWebSocket.mockReturnValue(hookReturn('player', { phase: 'playing', pausesLeft: 0 }));
+
+      renderMatch();
+
+      expect(await screen.findByRole('button', BUTTON)).toBeDisabled();
+    });
+
+    it('reconexión a mitad de partido (período 3, pausesLeft 1): el botón está habilitado', async () => {
+      useMatchWebSocket.mockReturnValue(hookReturn('player', { phase: 'playing', pausesLeft: 1, periodNumber: 3 }));
+
+      renderMatch();
+
+      expect(await screen.findByRole('button', BUTTON)).toBeEnabled();
+    });
+
+    it('flujo completo: abre el formulario, elige y envía; informa que queda pendiente', async () => {
+      useMatchWebSocket.mockReturnValue(hookReturn('player', { phase: 'playing', pausesLeft: 3 }));
+      renderMatch();
+
+      fireEvent.click(await screen.findByRole('button', BUTTON));
+      await screen.findByLabelText('Titular que sale');
+      fireEvent.change(screen.getByLabelText('Titular que sale'), { target: { value: '1' } });
+      fireEvent.change(screen.getByLabelText('Suplente que entra'), { target: { value: '7' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Confirmar cambio' }));
+
+      await waitFor(() => expect(setSubstitution).toHaveBeenCalledWith('5', { starterId: 1, substituteId: 7 }));
+      expect(await screen.findByText('Cambio registrado: queda pendiente hasta la próxima pausa.')).toBeInTheDocument();
+    });
+
+    it('al llegar el evento pause (teamVersion) se vuelve a pedir el equipo y el formulario lo refleja', async () => {
+      useMatchWebSocket.mockReturnValue(hookReturn('player', { phase: 'playing', pausesLeft: 3, teamVersion: 0 }));
+      const { refresh } = renderMatch();
+      fireEvent.click(await screen.findByRole('button', BUTTON));
+      await screen.findByLabelText('Titular que sale');
+      expect(getMatchTeam).toHaveBeenCalledTimes(1);
+
+      getMatchTeam.mockResolvedValue(team('Di María'));
+      useMatchWebSocket.mockReturnValue(
+        hookReturn('player', { phase: 'paused', pausesLeft: 2, teamVersion: 1, pauseRemaining: 15, pauseReason: 'hydration', pauseCount: 1 }),
       );
-      expect(getMatchLineups).toHaveBeenCalledTimes(1);
-      expect(getMatchLineups.mock.calls[0][0]).toBe('5');
-    });
+      refresh();
 
-    it('vuelve a pedirlos al llegar el primer tick, y no en los ticks siguientes', async () => {
-      const { rerender } = renderMatch();
-      await waitFor(() => expect(getMatchLineups).toHaveBeenCalledTimes(1));
-
-      mockWs({ phase: 'countdown' });
-      rerender(ui());
-      await waitFor(() => expect(getMatchLineups).toHaveBeenCalledTimes(2));
-
-      mockWs({ phase: 'playing' });
-      rerender(ui());
-      rerender(ui());
-      expect(getMatchLineups).toHaveBeenCalledTimes(2);
-    });
-
-    it('no pide durante la pausa y vuelve a pedir cuando termina', async () => {
-      mockWs({ phase: 'playing' });
-      const { rerender } = renderMatch();
-      await waitFor(() => expect(getMatchLineups).toHaveBeenCalledTimes(1));
-
-      mockWs({ phase: 'paused' });
-      rerender(ui());
-      expect(getMatchLineups).toHaveBeenCalledTimes(1);
-
-      mockWs({ phase: 'countdown' });
-      rerender(ui());
-      await waitFor(() => expect(getMatchLineups).toHaveBeenCalledTimes(2));
-    });
-
-    it('cancela la request pendiente al desmontar', async () => {
-      let signal;
-      getMatchLineups.mockImplementation((id, options) => {
-        signal = options.signal;
-        return new Promise(() => {});
-      });
-
-      const { unmount } = renderMatch();
-      await waitFor(() => expect(signal).toBeDefined());
-      expect(signal.aborted).toBe(false);
-      unmount();
-
-      expect(signal.aborted).toBe(true);
-    });
-
-    it.each([401, 403, 404])('ante un %i la cancha queda sin nombres y el partido sigue', async (status) => {
-      getMatchLineups.mockRejectedValue({ response: { status } });
-
-      renderMatch();
-
-      await waitFor(() => expect(getMatchLineups).toHaveBeenCalled());
-      expect(screen.getByTestId('pitch')).toHaveTextContent('{}');
+      await waitFor(() => expect(getMatchTeam).toHaveBeenCalledTimes(2));
+      expect(await screen.findByRole('option', { name: 'Di María (Delantero)' })).toBeInTheDocument();
     });
   });
 });

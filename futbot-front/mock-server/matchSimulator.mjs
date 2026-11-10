@@ -372,6 +372,8 @@ export function createSimulator(options = {}) {
       penaltyRemainingSeconds: inShootout ? pen.remaining : null,
       elapsedTime: Math.floor(elapsed),
       pauseRemainingSeconds: phase === 'paused' ? Math.ceil(left / TPS) : null,
+      // Pausas que todavía no empezaron (no cuenta la que está en curso): 3, 2, 1, 0.
+      pausesLeft: 3 - (phase === 'paused' ? period : period - 1),
       phase,
       event,
     };
