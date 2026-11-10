@@ -54,10 +54,10 @@ const button = (name) => screen.getByRole('button', { name });
 
 const fillValidTeam = () => {
   for (let i = 0; i < 6; i++) {
-    fireEvent.change(screen.getByLabelText(/Jugador/i, { selector: `#player-${i}` }), {
+    fireEvent.change(screen.getByLabelText(/Jugador/i, { selector: `select[id$="player-${i}"]` }), {
       target: { value: String(i + 1) },
     });
-    fireEvent.change(screen.getByLabelText(/Comportamiento/i, { selector: `#behavior-${i}` }), {
+    fireEvent.change(screen.getByLabelText(/Comportamiento/i, { selector: `select[id$="behavior-${i}"]` }), {
       target: { value: '101' },
     });
   }
@@ -84,23 +84,23 @@ describe('JoinFriendly (SCRUM-48)', () => {
       expect(submitBtn).toBeDisabled();
 
       for (let i = 0; i < 5; i++) {
-        fireEvent.change(screen.getByLabelText(/Jugador/i, { selector: `#player-${i}` }), {
+        fireEvent.change(screen.getByLabelText(/Jugador/i, { selector: `select[id$="player-${i}"]` }), {
           target: { value: String(i + 1) },
         });
-        fireEvent.change(screen.getByLabelText(/Comportamiento/i, { selector: `#behavior-${i}` }), {
+        fireEvent.change(screen.getByLabelText(/Comportamiento/i, { selector: `select[id$="behavior-${i}"]` }), {
           target: { value: '101' },
         });
       }
-      fireEvent.change(screen.getByLabelText(/Jugador/i, { selector: '#player-5' }), {
+      fireEvent.change(screen.getByLabelText(/Jugador/i, { selector: 'select[id$="player-5"]' }), {
         target: { value: '1' },
       });
-      fireEvent.change(screen.getByLabelText(/Comportamiento/i, { selector: '#behavior-5' }), {
+      fireEvent.change(screen.getByLabelText(/Comportamiento/i, { selector: 'select[id$="behavior-5"]' }), {
         target: { value: '101' },
       });
 
       expect(submitBtn).toBeDisabled();
 
-      fireEvent.change(screen.getByLabelText(/Jugador/i, { selector: '#player-5' }), {
+      fireEvent.change(screen.getByLabelText(/Jugador/i, { selector: 'select[id$="player-5"]' }), {
         target: { value: '6' },
       });
       expect(submitBtn).toBeEnabled();
