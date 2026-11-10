@@ -55,7 +55,14 @@ docker compose up --build
 Para probar la pantalla de partido en vivo sin levantar el backend, se incluye un servidor mock que simula el endpoint REST y el WebSocket a 20 ticks por segundo:
 
 ```bash
-Se ejecuta con el `VITE_USE_MOCKS=true` en el archivo `/futbot-Front/futbot-front/.env.local`
+Se ejecuta con el `VITE_USE_MOCKS=false` en el archivo `/futbot-Front/futbot-front/.env.local`
+Se deben usar dos terminales:
+# Terminal 1: el mock del partido (WebSocket + endpoints REST)
+cd futbot-front
+npm i -D ws                           # solo la primera vez
+node mock-server/mockMatchServer.mjs
+
+# Terminal 2: el front
 docker compose up --build
 ```
 
