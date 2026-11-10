@@ -47,7 +47,7 @@ const MOCK_CREATE_ERRORS = {
 const THEMES = ['Liga de campeones', 'Copa del barrio', 'Torneo relámpago', 'Liga amateur', 'Súper liga', 'Liga de verano'];
 const CLUBS = ['Boca Juniors FC', 'River Plate FC', 'Racing Club', 'Independiente', 'San Lorenzo', 'Estudiantes', 'Vélez Sarsfield', 'Lanús'];
 const USERNAMES = ['pepe', 'luli', 'nico', 'sofi', 'tomi', 'cami'];
-const STATUSES = ['preparation'];
+const STATUSES = ['preparation', 'started', 'finished', 'cancelled', 'preparation'];
 const MAX_PARTICIPANTS = [8, 12, 16];
 
 // ---------------------------------------------------------------------------
@@ -105,6 +105,66 @@ const wait = (ms, signal) =>
     }, ms);
     signal?.addEventListener('abort', onAbort, { once: true });
   });
+// ---------------------------------------------------------------------------
+// Fixture de partidos (usado por getLeagueFixtureMock y el WS de fixture)
+// ---------------------------------------------------------------------------
+const MOCK_FIXTURE = [
+  {
+    id: 101,
+    leagueId: 2,
+    name: null,
+    status: 'finished',
+    club1: { id: 1, username: 'pepe', name: 'Boca Juniors FC', avatar: 1 },
+    club2: { id: 2, username: 'luli', name: 'River Plate FC',  avatar: 2 },
+    scheduledAt: new Date(Date.UTC(2026, 0, 10, 20, 0)).toISOString(),
+    createdAt:   new Date(Date.UTC(2026, 0,  8,  9, 0)).toISOString(),
+    result: { score1: 2, score2: 1, penalties: null },
+  },
+  {
+    id: 102,
+    leagueId: 2,
+    name: null,
+    status: 'finished',
+    club1: { id: 3, username: 'nico', name: 'Racing Club',   avatar: 3 },
+    club2: { id: 4, username: 'sofi', name: 'Independiente', avatar: 4 },
+    scheduledAt: new Date(Date.UTC(2026, 0, 11, 20, 0)).toISOString(),
+    createdAt:   new Date(Date.UTC(2026, 0,  8,  9, 0)).toISOString(),
+    result: { score1: 0, score2: 0, penalties: { score1: 4, score2: 3, winner: 'club1' } },
+  },
+  {
+    id: 103,
+    leagueId: 2,
+    name: null,
+    status: 'started',
+    club1: { id: 5, username: 'tomi', name: 'San Lorenzo', avatar: 5 },
+    club2: { id: 6, username: 'cami', name: 'Estudiantes',  avatar: 1 },
+    scheduledAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+    createdAt:   new Date(Date.UTC(2026, 0,  8,  9, 0)).toISOString(),
+    result: null,
+  },
+  {
+    id: 104,
+    leagueId: 2,
+    name: null,
+    status: 'scheduled',
+    club1: { id: 7, username: 'mari', name: 'Vélez Sarsfield', avatar: 2 },
+    club2: { id: 8, username: 'juli', name: 'Lanús',           avatar: 3 },
+    scheduledAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+    createdAt:   new Date(Date.UTC(2026, 0,  8,  9, 0)).toISOString(),
+    result: null,
+  },
+  {
+    id: 105,
+    leagueId: 2,
+    name: null,
+    status: 'scheduled',
+    club1: { id: 1, username: 'pepe', name: 'Boca Juniors FC', avatar: 1 },
+    club2: { id: 3, username: 'nico', name: 'Racing Club',     avatar: 3 },
+    scheduledAt: new Date(Date.now() + 90 * 60 * 1000).toISOString(),
+    createdAt:   new Date(Date.UTC(2026, 0,  8,  9, 0)).toISOString(),
+    result: null,
+  },
+];
 
 function findLeague(id) {
   const league = LEAGUES.find((item) => item.id === Number(id));
@@ -245,7 +305,8 @@ export async function joinLeagueMock(id, { password } = {}) {
 // WebSocket /ws/leagues/{id}/participants: mismo contrato que el real (handshake con
 // cierres 4xxx, estado completo al conectar y un mensaje nuevo con cada cambio).
 // ---------------------------------------------------------------------------
-export function createLeagueSocketMock(id) {
+export function createLeagueSocketMock(id, channel) {
+
   const socket = { onopen: null, onmessage: null, onclose: null, close: () => teardown() };
   let timer = null;
   let listener = null;
@@ -271,6 +332,16 @@ export function createLeagueSocketMock(id) {
   }
 
   timer = setTimeout(() => {
+    if (channel === 'fixture') {
+      socket.onopen?.();
+      setTimeout(() => {
+        socket.onmessage?.({
+          data: JSON.stringify({ type: 'leagueFixture', fixture: MOCK_FIXTURE.map((m) => ({ ...m })) }),
+        });
+      }, 200);
+      return;
+    }
+
     const league = LEAGUES.find((item) => item.id === Number(id));
     if (!league) return reject(4404, 'leagueNotFound');
     if (!hasAccessTo(league)) return reject(4403, 'leagueAccessRequired');
@@ -302,4 +373,33 @@ export async function leaveLeagueMock(id) {
   if (index === -1) throw codedError(409, 'notParticipating');
   participants.splice(index, 1);
   emitParticipants(league);
+}
+
+// ---------------------------------------------------------------------------
+// GET /leagues/{id}/fixture
+// ---------------------------------------------------------------------------
+export async function getLeagueFixtureMock(id, { signal } = {}) {
+  await wait(MOCK_DELAY_MS, signal);
+  const league = findLeague(id);
+  if (league.status === 'preparation') throw codedError(409, 'leagueNotStarted');
+  return MOCK_FIXTURE.map((m) => ({ ...m }));
+}
+
+// ---------------------------------------------------------------------------
+// WS /ws/leagues/{id}/fixture — manda el fixture completo al conectar
+// ---------------------------------------------------------------------------
+export function createLeagueFixtureSocketMock() {
+  const socket = { onopen: null, onmessage: null, onclose: null, close: () => clearTimeout(timer) };
+  let timer;
+
+  timer = setTimeout(() => {
+    socket.onopen?.();
+    setTimeout(() => {
+      socket.onmessage?.({
+        data: JSON.stringify({ type: 'leagueFixture', fixture: MOCK_FIXTURE.map((m) => ({ ...m })) }),
+      });
+    }, 200);
+  }, MOCK_DELAY_MS);
+
+  return socket;
 }
