@@ -7,7 +7,7 @@ const LINKS = [
   { to: '/', label: 'Inicio', end: true },
   { to: '/leagues', label: 'Ligas' },
   { to: '/friendlies', label: 'Amistosos' },
-  { to: '/players', label: 'Mis jugadores' },
+  { to: '/players/new', label: 'Crear jugadores' },
   { to: '/behaviors', label: 'Mis comportamientos' },
   { to: '/ranking', label: 'Ranking Global' },
 ];
