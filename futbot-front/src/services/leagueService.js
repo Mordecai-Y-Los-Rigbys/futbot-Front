@@ -27,7 +27,7 @@ export const PAGE_SIZE = 50;
  * @param {{ signal?: AbortSignal }} [options]  Permite cancelar la request.
  * @returns {Promise<{ items: LeagueSummary[], page: number, pageSize: number, total: number }>}
  *   donde LeagueSummary = { id, name, creator: {id, username, name}, status,
- *   participantsCount, maxParticipants, private, createdAt }.
+ *   participantsCount, minParticipants, maxParticipants, private, allowDraws, createdAt }.
  *   `items` puede venir vacío con status 200 (sin ligas, sin coincidencias o página fuera de rango).
  */
 export async function getLeagues(name, page = 1, { signal } = {}) {

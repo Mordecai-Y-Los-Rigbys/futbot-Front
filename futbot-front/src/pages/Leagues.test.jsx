@@ -17,6 +17,7 @@ const makeLeague = (overrides = {}) => ({
   participantsCount: 8,
   maxParticipants: 16,
   private: false,
+  allowDraws: true,
   createdAt: '2026-01-15T10:00:00Z',
   ...overrides,
 });
@@ -138,6 +139,35 @@ describe('Leagues', () => {
       const lock = screen.getByRole('img', { name: 'Pública' });
       expect(lock).toHaveTextContent('🔓');
       expect(lock).toHaveAttribute('title', 'Pública');
+    });
+
+    it('una liga con allowDraws false muestra la etiqueta "Definición por Penales"', async () => {
+      getLeagues.mockResolvedValue(response([makeLeague({ allowDraws: false })]));
+
+      await renderPage();
+
+      expect(screen.getByText('Definición por Penales')).toBeInTheDocument();
+    });
+
+    it('una liga con allowDraws true no muestra la etiqueta "Definición por Penales"', async () => {
+      getLeagues.mockResolvedValue(response([makeLeague({ allowDraws: true })]));
+
+      await renderPage();
+
+      expect(screen.queryByText('Definición por Penales')).not.toBeInTheDocument();
+    });
+
+    it('la etiqueta "Definición por Penales" aparece solo en las ligas que la requieren', async () => {
+      getLeagues.mockResolvedValue(response([
+        makeLeague({ id: 1, name: 'Liga Normal', allowDraws: true }),
+        makeLeague({ id: 2, name: 'Liga Penales', allowDraws: false }),
+      ]));
+
+      await renderPage();
+
+      expect(screen.getAllByText('Definición por Penales')).toHaveLength(1);
+      expect(screen.getByText('Liga Penales').closest('li')).toHaveTextContent('Definición por Penales');
+      expect(screen.getByText('Liga Normal').closest('li')).not.toHaveTextContent('Definición por Penales');
     });
 
     it('el texto alternativo del candado no se muestra como texto visible', async () => {
