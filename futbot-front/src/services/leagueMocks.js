@@ -303,3 +303,13 @@ export async function leaveLeagueMock(id) {
   participants.splice(index, 1);
   emitParticipants(league);
 }
+
+export async function startLeagueMock(id) {
+  await wait(MOCK_DELAY_MS);
+  const league = findLeague(id);
+  if (league.status !== 'preparation') throw codedError(409, 'notInPreparation');
+  const participants = participantsOf(league);
+  if (participants.length < MOCK_MIN_PARTICIPANTS) throw codedError(409, 'notEnoughParticipants');
+  league.status = 'started';
+  notifyLeagueChange(league);
+}
