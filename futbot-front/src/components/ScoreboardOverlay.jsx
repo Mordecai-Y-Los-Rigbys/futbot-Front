@@ -50,7 +50,16 @@ function PenaltyDuel({ current, countdown, remaining }) {
   );
 }
 
-export default function ScoreboardOverlay({ meta, roster, status, onExit }) {
+// `finishedTitle` y `exitLabel` son opcionales: la pantalla de prueba de comportamientos
+// los usa para mostrar "Prueba terminada" / "Volver a probar". Por defecto, el partido normal.
+export default function ScoreboardOverlay({
+  meta,
+  roster,
+  status,
+  onExit,
+  finishedTitle = 'Partido finalizado',
+  exitLabel = 'Volver al inicio',
+}) {
   const {
     score1,
     score2,
@@ -198,14 +207,14 @@ export default function ScoreboardOverlay({ meta, roster, status, onExit }) {
 
         {phase === 'finished' && (
           <div className="final" role="status">
-            <span className="final__title">Partido finalizado</span>
+            <span className="final__title">{finishedTitle}</span>
             <span className="final__score">
               {finalResult.score1} : {finalResult.score2}
               {penalties && ` (${shootoutLabel(penalties)})`}
             </span>
             {penalties && <span className="final__winner">{winnerLabel(penalties, clubNameOf(penalties.winner))}</span>}
             {penalties && <PenaltyBoard kicks={penalties.kicks} clubs={clubs} />}
-            <button type="button" onClick={onExit}>Volver al inicio</button>
+            <button type="button" onClick={onExit}>{exitLabel}</button>
           </div>
         )}
       </div>

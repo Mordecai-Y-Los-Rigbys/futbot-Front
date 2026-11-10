@@ -9,6 +9,7 @@ import Register from '../pages/Register';
 import LoginScreen from '../pages/Login';
 import Behaviors from '../pages/Behaviors';
 import BehaviorDetail from '../pages/BehaviorDetail';
+import BehaviorTest from '../pages/BehaviorTest';
 import Leagues from '../pages/Leagues';
 import CreateLeague from '../pages/CreateLeague';
 import LeagueLobby from '../pages/LeagueLobby';
@@ -50,6 +51,10 @@ export default function AppRoutes() {
             <Route path="/behaviors" element={<Behaviors />}>
               <Route path=":id" element={<BehaviorDetail />} />
             </Route>
+
+            {/* Prueba de comportamientos: no es un partido (sin id, sin listados, sin rankings).
+                La ruta estática le gana a /behaviors/:id. */}
+            <Route path="/behaviors/test" element={<BehaviorTest />} />
 
             {/* Ligas */}
             <Route path="/leagues" element={<Leagues />} />

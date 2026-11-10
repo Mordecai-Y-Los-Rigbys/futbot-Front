@@ -12,6 +12,14 @@ vi.mock('../services/behaviorService', () => ({
 }));
 vi.mock('../components/BehaviorCodeEditor', () => import('../test/BehaviorCodeEditorMock'));
 
+// El botón de prueba tiene sus propios tests y hace sus propias llamadas a getBehaviors/getPlayersPage.
+vi.mock('../components/TestBehaviorButton', () => ({ default: () => null }));
+
+vi.mock('../services/behaviorService', () => ({
+  getBehaviors: vi.fn(),
+  PAGE_SIZE: 50,
+}));
+
 const makeItems = (n) =>
   Array.from({ length: n }, (_, i) => ({ id: i + 1, name: `Behavior ${i + 1}` }));
 
