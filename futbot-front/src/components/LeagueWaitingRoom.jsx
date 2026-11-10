@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import JoinLeagueModal from './JoinLeagueModal';
 import LeaguePasswordForm from './LeaguePasswordForm';
 import Modal from './Modal';
 import { useAuth } from '../context/AuthContext.jsx';
 import useLeagueSocket from '../hooks/useLeagueSocket';
-import { leaveLeague } from '../services/leagueService';
+import { leaveLeague, startLeague } from '../services/leagueService';
 import './LeagueWaitingRoom.css';
 
 // Mismo mapa que Leagues.jsx: si hace falta en una tercera pantalla, conviene moverlo a un módulo común.
@@ -19,6 +19,11 @@ const STATUS_LABELS = {
 // Cierres del canal que no son un error: la pantalla se va o se vuelve a pedir la liga.
 const LEAVING_CLOSE_CODES = [1000, 4401, 4404, 4409];
 const SESSION_MESSAGE = 'Tu sesión venció. Iniciá sesión nuevamente.';
+
+const START_CONFLICT_MESSAGES = {
+  notInPreparation:      'La liga ya no está en preparación.',
+  notEnoughParticipants: 'No hay suficientes participantes para iniciar.',
+};
 
 const LEAVE_CONFLICT_MESSAGES = {
   notInPreparation: 'La liga ya no está en preparación: no se puede abandonar.',
@@ -46,6 +51,9 @@ export default function LeagueWaitingRoom({ league, onLeagueChanged }) {
   const [hasLeft, setHasLeft] = useState(false);
   const [isJoinOpen, setIsJoinOpen] = useState(false);
   const [notice, setNotice] = useState(null);
+  const [isStarting, setIsStarting] = useState(false);
+  const [startError, setStartError] = useState(null);
+
 
   // Cierres definitivos del canal que sacan al usuario de esta vista.
   useEffect(() => {
@@ -92,6 +100,28 @@ export default function LeagueWaitingRoom({ league, onLeagueChanged }) {
     setIsJoinOpen(false);
     setNotice('¡Te uniste a la liga!');
   };
+    const handleStart = async () => {
+    setIsStarting(true);
+    setStartError(null);
+    try {
+      await startLeague(league.id);
+      // El WS cierra con 1000 y onLeagueChanged() navega a la vista de liga en curso.
+      // No hace falta navegar manualmente: el useEffect de closeInfo ya lo hace.
+    } catch (err) {
+      const { status: httpStatus, data } = err.response ?? {};
+      if (httpStatus === 409) {
+        setStartError(START_CONFLICT_MESSAGES[data?.code] ?? 'No se pudo iniciar la liga.');
+      } else if (httpStatus === 401) {
+        setStartError('Tu sesión venció. Iniciá sesión nuevamente.');
+      } else if (httpStatus === 403) {
+        setStartError('Solo el creador puede iniciar la liga.');
+      } else {
+        setStartError('No pudimos iniciar la liga. Intentá nuevamente.');
+      }
+    } finally {
+      setIsStarting(false);
+    }
+  };
 
   // 4403 leagueAccessRequired: liga privada sin acceso. Otros 4403 (por ejemplo originNotAllowed)
   // no son este caso. Se muestra el formulario en lugar de la sala.
@@ -124,6 +154,7 @@ export default function LeagueWaitingRoom({ league, onLeagueChanged }) {
   const canLeave = isParticipant && !isCreator && !hasLeft;
   const isFull = spotsLeft === 0;
   const canJoin = !isParticipant && !isFull;
+  const canStart = isCreator && participants.length >= league.minParticipants;
   
   return (
     <main className="league-lobby">
@@ -165,10 +196,22 @@ export default function LeagueWaitingRoom({ league, onLeagueChanged }) {
       </section>
   
       {isCreator && <p>Sos el creador de la liga: no podés abandonarla.</p>}
+      {startError && <p role="alert">{startError}</p>}
       {!isParticipant && isFull && <p>La liga está llena.</p>}
 
       <div className="league-lobby__actions">
-                {canLeave && (
+        {canStart && (
+          <button
+            type="button"
+            className="league-lobby__primary"
+            onClick={handleStart}
+            disabled={isStarting}
+          >
+            {isStarting ? 'Iniciando…' : 'Iniciar liga'}
+          </button>
+        )}
+
+        {canLeave && (
           <button
             type="button"
             className="league-lobby__danger"
