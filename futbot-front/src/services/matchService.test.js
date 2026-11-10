@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import api from './api';
 import { buildWsUrl, getMatchBehavior, getMatchTeam, reassignBehavior, setSubstitution } from './matchService';
 
-vi.mock('./api', () => ({ default: { defaults: { baseURL: '' } } }));
+vi.mock('./api', () => ({ default: { defaults: { baseURL: '' }, get: vi.fn(), put: vi.fn() } }));
 
 const WS_PATH = '/ws/matches/7?token=abc';
 
